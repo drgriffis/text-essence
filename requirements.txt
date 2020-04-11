@@ -1,0 +1,5 @@
+cli_configparser
+hedgepig_logger
+pyemblib
+nltk
+spacy
