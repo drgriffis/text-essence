@@ -1,23 +1,38 @@
 from hedgepig_logger import log
-from data_processor import CORD19Dataset
+from corpus.data_processor import CORD19Dataset
 
 def extractRecord(record, stream):
+    status = {}
     for key in ['abstract', 'body_text']:
-        paragraphs = record[key]
-        for paragraph in paragraphs:
-            stream.write('%s\n' % paragraph['text'].strip())
+        #TODO: why do some not have the "abstract" field? (see 2020-04-10 version)
+        try:
+            paragraphs = record[key]
+            for paragraph in paragraphs:
+                stream.write('%s\n' % paragraph['text'].strip())
+            status[key] = 0
+        except KeyError:
+            status[key] = 1
+    return status
+            
 
 def extractCorpus(datadir, outf):
+    errors = {}
+    render_errors = lambda err: ' '.join([
+        '{0}: {1:,}'.format(k, v)
+            for (k,v) in err.items()
+    ])
     with open(outf, 'w') as stream:
         log.writeln('Loading CORD-19 dataset from %s...' % datadir)
         with CORD19Dataset(datadir) as dataset:
             log.writeln('Dataset loaded: includes {0:,} records.\n'.format(len(dataset)))
 
-            log.track('  >> Processed {0:,}/%s records' % ('{0:,}'.format(len(dataset))), writeInterval=1)
+            log.track('  >> Processed {0:,}/%s records (Errors -- {1})' % ('{0:,}'.format(len(dataset))), writeInterval=1)
             for record in dataset:
-                extractRecord(record, stream)
-                log.tick()
-    log.flushTracker()
+                record_errors = extractRecord(record, stream)
+                for (k,v) in record_errors.items():
+                    if v == 1: errors[k] = errors.get(k,0) + 1
+                log.tick(render_errors(errors))
+    log.flushTracker(render_errors(errors))
 
 if __name__ == '__main__':
     def _cli():
