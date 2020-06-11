@@ -40,7 +40,7 @@ class EmbeddingNeighborhoodDatabase:
             EntityKey text,
             NeighborKey text,
             MeanDistance real,
-            UNIQUE(Source, Target, EntityKey)
+            UNIQUE(Source, Target, EntityKey, NeighborKey)
         )
         ''')
 
