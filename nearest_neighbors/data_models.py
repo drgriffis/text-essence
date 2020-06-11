@@ -17,3 +17,17 @@ class EntityOverlapAnalysis:
         self.source_confidence = source_confidence
         self.target_confidence = target_confidence
         self.EN_similarity = EN_similarity
+
+class AggregateNearestNeighbor:
+    source = None
+    target = None
+    key = None
+    neighbor_key = None
+    mean_distance = None
+
+    def __init__(self, source, target, key, neighbor_key, mean_distance):
+        self.source = source
+        self.target = target
+        self.key = key
+        self.neighbor_key = neighbor_key
+        self.mean_distance = mean_distance

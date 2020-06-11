@@ -77,27 +77,6 @@ def rankKeysByMeanDeltaFromBaseline(control_overlap_percentage_means,
 
     return sorted_deltas
 
-def loadInNeighbors(src, i, trg, config, k):
-    neighbor_file = config['NeighborFilePattern'].format(
-        SRC=src, SRC_RUN=i, TRG=trg
-    )
-    neighbor_vocab = config['NeighborVocabFilePattern'].format(
-        SRC=src, SRC_RUN=i, TRG=trg
-    )
-
-    #log.writeln('\nREADING NODE MAP FROM %s' % neighbor_vocab)
-    node_map = nn_io.readNodeMap(neighbor_vocab)
-
-    #log.writeln('READING NODES FROM %s' % neighbor_file)
-    neighbors = nn_io.readNeighborFile(
-        neighbor_file,
-        k=k,
-        node_map=node_map,
-        with_distances=True
-    )
-
-    return neighbors
-
 
 def analyzeOverlap(src, trg, config, db, k=5,
         confidence_threshold=0.5):
@@ -106,14 +85,14 @@ def analyzeOverlap(src, trg, config, db, k=5,
 
     log.track('  >> [1/7] Loaded {0:,}/10 neighbor sets')
     for i in range(1,11):
-        src_neighbor_sets.append(loadInNeighbors(
+        src_neighbor_sets.append(nn_io.loadPairedNeighbors(
             src,
             i,
             trg,
             config,
             k=k
         ))
-        trg_neighbor_sets.append(loadInNeighbors(
+        trg_neighbor_sets.append(nn_io.loadPairedNeighbors(
             trg,
             i,
             src,

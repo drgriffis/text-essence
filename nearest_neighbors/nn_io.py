@@ -110,3 +110,31 @@ def readSet(f, to_lower=False):
             if to_lower: line = line.lower()
             _set.add(line)
     return _set
+
+def loadPairedNeighbors(src, i, trg, config, k, aggregate=False,
+        with_distances=True):
+    if not aggregate:
+        neighbor_file = config['NeighborFilePattern'].format(
+            SRC=src, SRC_RUN=i, TRG=trg
+        )
+        neighbor_vocab = config['NeighborVocabFilePattern'].format(
+            SRC=src, SRC_RUN=i, TRG=trg
+        )
+    else:
+        neighbor_file = config['AggregateNeighborFilePattern'].format(
+            SRC=src, TRG=trg
+        )
+        neighbor_vocab = config['AggregateNeighborVocabFilePattern'].format(
+            SRC=src, TRG=trg
+        )
+
+    node_map = readNodeMap(neighbor_vocab)
+
+    neighbors = readNeighborFile(
+        neighbor_file,
+        k=k,
+        node_map=node_map,
+        with_distances=with_distances
+    )
+
+    return neighbors

@@ -5,19 +5,15 @@ from .data_models import *
 class EmbeddingNeighborhoodDatabase:
     
     def __init__(self, fpath):
-        if not os.path.exists(fpath):
-            self._connection = sqlite3.connect(fpath)
-            self._cursor = self._connection.cursor()
-            self._build()
-        else:
-            self._connection = sqlite3.connect(fpath)
-            self._cursor = self._connection.cursor()
+        self._connection = sqlite3.connect(fpath)
+        self._cursor = self._connection.cursor()
+        self._build()
 
     def _build(self):
         ## the EntityOverlapAnalysis table stores outputs from paired
         ## neighborhood analysis
         self._cursor.execute('''
-        CREATE TABLE EntityOverlapAnalysis
+        CREATE TABLE IF NOT EXISTS EntityOverlapAnalysis
         (
             Source text,
             Target text,
@@ -30,6 +26,21 @@ class EmbeddingNeighborhoodDatabase:
         )
         ''')
 
+
+        ## the AggregateNearestNeighbors table stores nearest neighbors
+        ## aggregated across multiple source runs
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS AggregateNearestNeighbors
+        (
+            Source text,
+            Target text,
+            EntityKey text,
+            NeighborKey text,
+            MeanDistance real,
+            UNIQUE(Source, Target, EntityKey)
+        )
+        ''')
+
         ## flush all changes to DB
         self._connection.commit()
 
@@ -39,6 +50,8 @@ class EmbeddingNeighborhoodDatabase:
 
         if type(objects[0]) is EntityOverlapAnalysis:
             self.insertOrUpdateIntoEntityOverlapAnalysis(objects)
+        elif type(objects[0]) is AggregateNearestNeighbor:
+            self.insertOrUpdateIntoAggregateNearestNeighbors(objects)
 
     def insertOrUpdateIntoEntityOverlapAnalysis(self, overlaps):
         if (not type(overlaps) is list) and (not type(overlaps) is tuple):
@@ -56,6 +69,28 @@ class EmbeddingNeighborhoodDatabase:
             '''
             REPLACE INTO EntityOverlapAnalysis VALUES (
                 ?, ?, ?, ?, ?, ?, ?
+            )
+            ''',
+            rows
+        )
+
+        self._connection.commit()
+
+    def insertOrUpdateIntoAggregateNearestNeighbors(self, nbrs):
+        if (not type(nbrs) is list) and (not type(nbrs) is tuple):
+            nbrs = [nbrs]
+
+        rows = [
+            (
+                n.source, n.target, n.key, n.neighbor_key, n.mean_distance
+            )
+                for n in nbrs
+        ]
+
+        self._cursor.executemany(
+            '''
+            REPLACE INTO AggregateNearestNeighbors VALUES (
+                ?, ?, ?, ?, ?
             )
             ''',
             rows
