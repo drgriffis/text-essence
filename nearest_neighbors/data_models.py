@@ -31,3 +31,13 @@ class AggregateNearestNeighbor:
         self.key = key
         self.neighbor_key = neighbor_key
         self.mean_distance = mean_distance
+
+class EntityTerm:
+    entity_key = None
+    term = None
+    preferred = None
+
+    def __init__(self, entity_key, term, preferred):
+        self.entity_key = entity_key
+        self.term = term
+        self.preferred = preferred

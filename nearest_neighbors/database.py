@@ -41,6 +41,18 @@ class EmbeddingNeighborhoodDatabase:
         )
         ''')
 
+
+        ## the EntityTerms table maps entity keys to string terms
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS EntityTerms
+        (
+            EntityKey text,
+            Term text,
+            Preferred int,
+            UNIQUE(EntityKey, Term)
+        )
+        ''')
+
         ## flush all changes to DB
         self._connection.commit()
 
@@ -52,6 +64,8 @@ class EmbeddingNeighborhoodDatabase:
             self.insertOrUpdateIntoEntityOverlapAnalysis(objects)
         elif type(objects[0]) is AggregateNearestNeighbor:
             self.insertOrUpdateIntoAggregateNearestNeighbors(objects)
+        elif type(objects[0]) is EntityTerm:
+            self.insertOrUpdateIntoEntityTerms(objects)
 
     def insertOrUpdateIntoEntityOverlapAnalysis(self, overlaps):
         if (not type(overlaps) is list) and (not type(overlaps) is tuple):
@@ -91,6 +105,28 @@ class EmbeddingNeighborhoodDatabase:
             '''
             REPLACE INTO AggregateNearestNeighbors VALUES (
                 ?, ?, ?, ?, ?
+            )
+            ''',
+            rows
+        )
+
+        self._connection.commit()
+
+    def insertOrUpdateIntoEntityTerms(self, ent_terms):
+        if (not type(ent_terms) is list) and (not type(ent_terms) is tuple):
+            ent_terms = [ent_terms]
+
+        rows = [
+            (
+                et.entity_key, et.term, et.preferred
+            )
+                for et in ent_terms
+        ]
+
+        self._cursor.executemany(
+            '''
+            REPLACE INTO EntityTerms VALUES (
+                ?, ?, ?
             )
             ''',
             rows
