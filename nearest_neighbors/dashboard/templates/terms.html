@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Neighbors</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='neighbors.css') }}">
+</head>
+<body id="showchanges">
+    <div id="terms_panel">
+        <h4>{{ key }}</h4>
+        <div class="nn_table">
+            <table>
+                <tr>
+                    <th>Term</th>
+                    <th>Preferred</th>
+                </tr>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.Term }}</td>
+                    <td>{{ row.Preferred }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>

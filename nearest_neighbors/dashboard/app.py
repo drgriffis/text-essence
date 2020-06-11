@@ -72,5 +72,80 @@ def showChanges(src=None, trg=None, at_k=None):
     return render_template(
         'showchanges.html',
         top_cwd=top_cwd,
-        top_cws=top_cws
+        top_cws=top_cws,
+        src=src,
+        trg=trg
+    )
+
+
+@app.route('/neighbors', methods=['POST'])
+@app.route('/neighbors/<query_key>', methods=['GET', 'POST'])
+def neighbors(query_key=None):
+    if request.method == 'GET':
+        getter = request.args.get
+    else:
+        getter = request.form.get
+
+    if query_key is None:
+        query_key = getter('query_key', None)
+    
+    corpora = getter('corpora', '').split(',')
+
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+
+    tables = []
+    for corpus in corpora:
+        rows = db.selectFromAggregateNearestNeighbors(
+            corpus,
+            corpus,
+            query_key,
+            limit=10
+        )
+
+        table_rows = []
+        for row in rows:
+            table_rows.append({
+                'NeighborKey': row.neighbor_key,
+                'NeighborString': row.neighbor_string,
+                'Distance': row.mean_distance
+            })
+
+        tables.append({
+            'Corpus': corpus,
+            'Rows': table_rows,
+        })
+
+    return render_template(
+        'neighbors.html',
+        tables=tables
+    )
+
+
+@app.route('/terms', methods=['POST'])
+@app.route('/terms/<query_key>', methods=['GET', 'POST'])
+def terms(query_key=None):
+    if request.method == 'GET':
+        getter = request.args.get
+    else:
+        getter = request.form.get
+
+    if query_key is None:
+        query_key = getter('query_key', None)
+
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+
+    rows = db.selectFromEntityTerms(
+        query_key
+    )
+
+    table_rows = []
+    for row in rows:
+        table_rows.append({
+            'Term': row.term,
+            'Preferred': ('X' if row.preferred == 1 else '')
+        })
+
+    return render_template(
+        'terms.html',
+        rows=table_rows
     )

@@ -215,3 +215,87 @@ class EmbeddingNeighborhoodDatabase:
                 string=preferred_term
             )
             yield ret_obj
+
+
+    def selectFromAggregateNearestNeighbors(self, src, trg, key,
+            limit=10):
+
+        query = '''
+        SELECT
+            ann.*,
+            et_query.Term as QueryTerm,
+            et_nbr.Term as NeighborTerm
+        FROM
+            AggregateNearestNeighbors AS ann
+        LEFT OUTER JOIN
+            EntityTerms AS et_query
+        ON
+            et_query.EntityKey = ann.EntityKey
+            AND et_query.Preferred = 1
+        LEFT OUTER JOIN
+            EntityTerms AS et_nbr
+        ON
+            et_nbr.EntityKey = ann.NeighborKey
+            AND et_nbr.Preferred = 1
+        WHERE
+            ann.Source=?
+            AND ann.Target=?
+            AND ann.EntityKey=?
+        ORDER BY ann.MeanDistance ASC
+        LIMIT {0}
+        '''.format(limit)
+
+        args = [
+            src,
+            trg,
+            key
+        ]
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                source,
+                target,
+                entity_key,
+                neighbor_key,
+                mean_distance,
+                query_term,
+                neighbor_term
+            ) = row
+            ret_obj = AggregateNearestNeighbor(
+                source=source,
+                target=target,
+                key=entity_key,
+                string=query_term,
+                neighbor_key=neighbor_key,
+                neighbor_string=neighbor_term,
+                mean_distance=mean_distance
+            )
+            yield ret_obj
+
+
+    def selectFromEntityTerms(self, key):
+        query = '''
+        SELECT
+            *
+        FROM
+            EntityTerms
+        WHERE
+            EntityKey=?
+        '''
+
+        args = [key]
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                entity_key,
+                term,
+                preferred
+            ) = row
+            ret_obj = EntityTerm(
+                entity_key=entity_key,
+                term=term,
+                preferred=preferred
+            )
+            yield ret_obj
