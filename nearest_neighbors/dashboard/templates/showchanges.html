@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Show changes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='showchanges.css') }}">
+</head>
+<body id="showchanges">
+    <div id="changes_panel">
+        <div id="top_cwd_panel">
+            <table>
+                <tr>
+                    <th>Key</th>
+                    <th>Source Confidence</th>
+                    <th>Target Confidence</th>
+                    <th>EN Similarity</th>
+                    <th>CWD</th>
+                </tr>
+                {% for cwd in top_cwd %}
+                <tr>
+                    <td>{{ cwd.Key }} <i>{{ cwd.String }}</i></td>
+                    <td>{{ cwd.SourceConfidence }}</td>
+                    <td>{{ cwd.TargetConfidence }}</td>
+                    <td>{{ cwd.ENSimilarity }}</td>
+                    <td>{{ cwd.CWD }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        <div id="top_cws_panel">
+            <table>
+                <tr>
+                    <th>Key</th>
+                    <th>Source Confidence</th>
+                    <th>Target Confidence</th>
+                    <th>EN Similarity</th>
+                    <th>CWS</th>
+                </tr>
+                {% for cws in top_cws %}
+                <tr>
+                    <td>{{ cws.Key }} <i>{{ cws.String }}</i></td>
+                    <td>{{ cws.SourceConfidence }}</td>
+                    <td>{{ cws.TargetConfidence }}</td>
+                    <td>{{ cws.ENSimilarity }}</td>
+                    <td>{{ cws.CWS }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>
