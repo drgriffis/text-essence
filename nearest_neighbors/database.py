@@ -295,24 +295,32 @@ class EmbeddingNeighborhoodDatabase:
 
         query = '''
         SELECT
-            ann.*,
+            ann.Source,
+            anns.Target,
+            ann.EntityKey,
+            ann.NeighborKey,
+            ann.MeanDistance,
             et_query.Term as QueryTerm,
             et_nbr.Term as NeighborTerm
         FROM
             AggregateNearestNeighbors AS ann
-        LEFT OUTER JOIN
-            EntityTerms AS et_query
-        ON
-            et_query.EntityKey = ann.EntityKey
-            AND et_query.Preferred = 1
-        LEFT OUTER JOIN
-            EntityTerms AS et_nbr
-        ON
-            et_nbr.EntityKey = ann.NeighborKey
-            AND et_nbr.Preferred = 1
+            INNER JOIN
+                AggregateNearestNeighborSubsets AS anns
+                ON
+                    anns.NeighborID = ann.ID
+            INNER JOIN
+                EntityTerms AS et_query
+                ON
+                    et_query.EntityKey = ann.EntityKey
+                    AND et_query.Preferred = 1
+            INNER JOIN
+                EntityTerms AS et_nbr
+                ON
+                    et_nbr.EntityKey = ann.NeighborKey
+                    AND et_nbr.Preferred = 1
         WHERE
             ann.Source=?
-            AND ann.Target=?
+            AND anns.Target=?
             AND ann.EntityKey=?
         ORDER BY ann.MeanDistance ASC
         LIMIT {0}
