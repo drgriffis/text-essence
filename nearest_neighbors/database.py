@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import math
 from .data_models import *
 
 class EmbeddingNeighborhoodDatabase:
@@ -32,15 +33,37 @@ class EmbeddingNeighborhoodDatabase:
 
         ## the AggregateNearestNeighbors table stores nearest neighbors
         ## aggregated across multiple source runs
+        ## (NB nearest neighbors are calculated within Source only; the
+        ##  AggregateNearestNeighborSubsets table manages identifying the
+        ##  subset of neighbors included in a given Source/Target pair)
         self._cursor.execute('''
         CREATE TABLE IF NOT EXISTS AggregateNearestNeighbors
         (
+            ID INTEGER PRIMARY KEY,
             Source text,
-            Target text,
             EntityKey text,
             NeighborKey text,
             MeanDistance real,
-            UNIQUE(Source, Target, EntityKey, NeighborKey)
+            UNIQUE(Source, EntityKey, NeighborKey)
+        )
+        ''')
+
+
+        ## the AggregateNearestNeighborSubsets table indexes which nearest
+        ## neighbors are included in which source/target pairs
+        ## (NB nearest neighbors are calculated within Source only, so the
+        ##  actual neighbors can be stored for reuse in
+        ##  AggregateNearestNeighbors)
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS AggregateNearestNeighborSubsets
+        (
+            Source text,
+            Target text,
+            NeighborID int,
+            UNIQUE(Source, Target, NeighborID),
+            CONSTRAINT FK_NeighborID
+                FOREIGN KEY (NeighborID)
+                REFERENCES AggregateNearestNeighbors(ID)
         )
         ''')
 
@@ -96,22 +119,72 @@ class EmbeddingNeighborhoodDatabase:
     def insertOrUpdateIntoAggregateNearestNeighbors(self, nbrs):
         if (not type(nbrs) is list) and (not type(nbrs) is tuple):
             nbrs = [nbrs]
-
-        rows = [
-            (
-                n.source, n.target, n.key, n.neighbor_key, n.mean_distance
-            )
-                for n in nbrs
-        ]
-
-        self._cursor.executemany(
+        
+        ## since each neighbor relationship may or may not need to be added to
+        ## the AggregateNearestNeighbors table as well as to
+        ## AggregateNearestNeighborSubsets, process rows one by one
+        for nbr in nbrs:
+            
+            ## (1) check if it's already in AggregateNearestNeighbors
+            query = '''
+            SELECT ID, MeanDistance FROM AggregateNearestNeighbors
+            WHERE
+                Source=?
+                AND EntityKey=?
+                AND NeighborKey=?
             '''
-            REPLACE INTO AggregateNearestNeighbors VALUES (
-                ?, ?, ?, ?, ?
+            args = [nbr.source, nbr.key, nbr.neighbor_key]
+            self._cursor.execute(query, args)
+
+            nbr_info = self._cursor.fetchone()
+
+            ## (2.1) if it isn't, add it to AggregateNearestNeighbors
+            if nbr_info is None:
+                row = (nbr.source, nbr.key, nbr.neighbor_key, nbr.mean_distance)
+                self._cursor.execute(
+                    '''
+                    INSERT INTO
+                        AggregateNearestNeighbors
+                        (
+                            Source, EntityKey, NeighborKey, MeanDistance
+                        )
+                    VALUES (
+                        ?, ?, ?, ?
+                    )
+                    ''',
+                    row
+                )
+
+                # pull the ID of the new row
+                nbr_ID = self._cursor.lastrowid
+
+            ## (2.2) if it is, just make sure the distance is the same, as a sanity check
+            else:
+                (nbr_ID, mean_dist) = nbr_info
+                # fuzzy equality check to account for floating point errors
+                if not math.isclose(mean_dist, nbr.mean_distance, abs_tol=0.001):
+                    print('[WARNING] Conflict in record for {0} <-> {1} in {2}'.format(nbr.key, nbr.neighbor_key, nbr.source))
+                    print('  Saved distance: {0}'.format(mean_dist))
+                    print('  Distance provided: {0}'.format(nbr.mean_distance))
+                    yn, acceptable = '', set(['y', 'n'])
+                    while not yn.strip().lower() in acceptable:
+                        yn = input('Proceed? [y/n] ')
+                    if yn.strip().lower() == 'n':
+                        print('Rolling back and aborting.')
+                        self._connection.rollback()
+                        exit(1)
+
+            ## (3) finally, add the source/target relationship to
+            ##     AggregateNearestNeighborSubsets
+            row = (nbr.source, nbr.target, nbr_ID)
+            self._cursor.execute(
+                '''
+                REPLACE INTO AggregateNearestNeighborSubsets VALUES (
+                    ?, ?, ?
+                )
+                ''',
+                row
             )
-            ''',
-            rows
-        )
 
         self._connection.commit()
 
