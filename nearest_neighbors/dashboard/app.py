@@ -149,3 +149,34 @@ def terms(query_key=None):
         'terms.html',
         rows=table_rows
     )
+
+
+@app.route('/search', methods=['POST'])
+@app.route('/search/<query>', methods=['GET', 'POST'])
+def search(query=None):
+    if request.method == 'GET':
+        getter = request.args.get
+    else:
+        getter = request.form.get
+
+    if query is None:
+        query = getter('query', None)
+
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+
+    rows = db.searchInEntityTerms(
+        query
+    )
+
+    table_rows = []
+    for row in rows:
+        table_rows.append({
+            'Key': row.entity_key,
+            'Term': row.term,
+        })
+
+    return render_template(
+        'search.html',
+        rows=table_rows,
+        corpora='2020-03-27,2020-04-03'  ## hard-coded value for now
+    )

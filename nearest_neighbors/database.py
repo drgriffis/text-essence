@@ -380,3 +380,31 @@ class EmbeddingNeighborhoodDatabase:
                 preferred=preferred
             )
             yield ret_obj
+
+
+    def searchInEntityTerms(self, query_string):
+        query = '''
+        SELECT
+            *
+        FROM
+            EntityTerms
+        WHERE
+            EntityKey LIKE ?
+            OR Term LIKE ?
+        '''
+
+        args = [query_string, query_string]
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                entity_key,
+                term,
+                preferred
+            ) = row
+            ret_obj = EntityTerm(
+                entity_key=entity_key,
+                term=term,
+                preferred=preferred
+            )
+            yield ret_obj

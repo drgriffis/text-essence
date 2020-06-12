@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Neighbors</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='neighbors.css') }}">
+</head>
+<body id="showchanges">
+    <div id="search_panel">
+        <h4>{{ key }}</h4>
+        <div class="nn_table">
+            <table>
+                <tr>
+                    <th>Key</th>
+                    <th>Term</th>
+                </tr>
+                {% for row in rows %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('neighbors', query_key=row.Key, corpora=corpora) }}">
+                            {{ row.Key }}
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('neighbors', query_key=row.Key, corpora=corpora) }}">
+                            {{ row.Term }}
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>
