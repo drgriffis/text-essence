@@ -312,7 +312,7 @@ class EmbeddingNeighborhoodDatabase:
 
 
     def selectFromAggregateNearestNeighbors(self, src, trg, key,
-            limit=10):
+            neighbor_type=EmbeddingType.ENTITY, limit=10):
 
         query = '''
         SELECT
@@ -334,7 +334,7 @@ class EmbeddingNeighborhoodDatabase:
                 ON
                     et_query.EntityKey = ann.EntityKey
                     AND et_query.Preferred = 1
-            INNER JOIN
+            LEFT OUTER JOIN
                 EntityTerms AS et_nbr
                 ON
                     et_nbr.EntityKey = ann.NeighborKey
@@ -343,6 +343,7 @@ class EmbeddingNeighborhoodDatabase:
             ann.Source=?
             AND anns.Target=?
             AND ann.EntityKey=?
+            AND ann.NeighborType=?
         ORDER BY ann.MeanDistance ASC
         LIMIT {0}
         '''.format(limit)
@@ -350,7 +351,8 @@ class EmbeddingNeighborhoodDatabase:
         args = [
             src,
             trg,
-            key
+            key,
+            neighbor_type
         ]
 
         self._cursor.execute(query, args)

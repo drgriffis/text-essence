@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 import os
 import configparser
-from nearest_neighbors.database import EmbeddingNeighborhoodDatabase
+from nearest_neighbors.database import *
 from nearest_neighbors.dashboard import packaging
 
 config = configparser.ConfigParser()
@@ -99,6 +99,7 @@ def neighbors(query_key=None):
             corpus,
             corpus,
             query_key,
+            neighbor_type=EmbeddingType.CONTEXT,
             limit=10
         )
 
