@@ -202,6 +202,9 @@ if __name__ == '__main__':
             if len(options.draw_queries_from) != len(args):
                 parser.error('If using --draw-queries-from, must provide same number'
                              ' of embedding files as given on command line!')
+        if options.threads < 2:
+            parser.print_help()
+            parser.error('--threads must be at least 2')
 
         if len(args) < 1:
             parser.print_help()

@@ -17,8 +17,9 @@ def loadTerminology(terminology, db):
     entity_terms = []
     for (entity_key, terms) in terminology.items():
         # default first term to be preferred
+        terms.reverse()
         for i in range(len(terms)):
-            preferred = 1 if i==0 else 0
+            preferred = 1 if (i==len(terms)-1) else 0
             entity_terms.append(EntityTerm(
                 entity_key=entity_key,
                 term=terms[i],
