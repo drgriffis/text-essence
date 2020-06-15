@@ -3,6 +3,25 @@ import os
 import math
 from .data_models import *
 
+class EmbeddingType:
+    ENTITY = 0
+    TERM = 1
+    WORD = 2
+    CONTEXT = 3
+
+    @staticmethod
+    def parse(string):
+        if string.strip().upper() == 'ENTITY':
+            return EmbeddingType.ENTITY
+        elif string.strip().upper() == 'TERM':
+            return EmbeddingType.TERM
+        elif string.strip().upper() == 'WORD':
+            return EmbeddingType.WORD
+        elif string.strip().upper() == 'CONTEXT':
+            return EmbeddingType.CONTEXT
+        else:
+            raise ValueError('EmbeddingType "%s" not known' % string)
+
 class EmbeddingNeighborhoodDatabase:
     
     def __init__(self, fpath):
@@ -43,6 +62,7 @@ class EmbeddingNeighborhoodDatabase:
             Source text,
             EntityKey text,
             NeighborKey text,
+            NeighborType int,
             MeanDistance real,
             UNIQUE(Source, EntityKey, NeighborKey)
         )
@@ -82,16 +102,16 @@ class EmbeddingNeighborhoodDatabase:
         ## flush all changes to DB
         self._connection.commit()
 
-    def insertOrUpdate(self, objects):
+    def insertOrUpdate(self, objects, *args, **kwargs):
         if (not type(objects) is list) and (not type(objects) is tuple):
             objects = [objects]
 
         if type(objects[0]) is EntityOverlapAnalysis:
-            self.insertOrUpdateIntoEntityOverlapAnalysis(objects)
+            self.insertOrUpdateIntoEntityOverlapAnalysis(objects, *args, **kwargs)
         elif type(objects[0]) is AggregateNearestNeighbor:
-            self.insertOrUpdateIntoAggregateNearestNeighbors(objects)
+            self.insertOrUpdateIntoAggregateNearestNeighbors(objects, *args, **kwargs)
         elif type(objects[0]) is EntityTerm:
-            self.insertOrUpdateIntoEntityTerms(objects)
+            self.insertOrUpdateIntoEntityTerms(objects, *args, **kwargs)
 
     def insertOrUpdateIntoEntityOverlapAnalysis(self, overlaps):
         if (not type(overlaps) is list) and (not type(overlaps) is tuple):
@@ -116,7 +136,7 @@ class EmbeddingNeighborhoodDatabase:
 
         self._connection.commit()
 
-    def insertOrUpdateIntoAggregateNearestNeighbors(self, nbrs):
+    def insertOrUpdateIntoAggregateNearestNeighbors(self, nbrs, neighbor_type=EmbeddingType.ENTITY):
         if (not type(nbrs) is list) and (not type(nbrs) is tuple):
             nbrs = [nbrs]
         
@@ -132,24 +152,25 @@ class EmbeddingNeighborhoodDatabase:
                 Source=?
                 AND EntityKey=?
                 AND NeighborKey=?
+                AND NeighborType=?
             '''
-            args = [nbr.source, nbr.key, nbr.neighbor_key]
+            args = [nbr.source, nbr.key, nbr.neighbor_key, neighbor_type]
             self._cursor.execute(query, args)
 
             nbr_info = self._cursor.fetchone()
 
             ## (2.1) if it isn't, add it to AggregateNearestNeighbors
             if nbr_info is None:
-                row = (nbr.source, nbr.key, nbr.neighbor_key, nbr.mean_distance)
+                row = (nbr.source, nbr.key, nbr.neighbor_key, neighbor_type, nbr.mean_distance)
                 self._cursor.execute(
                     '''
                     INSERT INTO
                         AggregateNearestNeighbors
                         (
-                            Source, EntityKey, NeighborKey, MeanDistance
+                            Source, EntityKey, NeighborKey, NeighborType, MeanDistance
                         )
                     VALUES (
-                        ?, ?, ?, ?
+                        ?, ?, ?, ?, ?
                     )
                     ''',
                     row

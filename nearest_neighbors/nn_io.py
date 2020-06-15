@@ -112,29 +112,41 @@ def readSet(f, to_lower=False):
     return _set
 
 def loadPairedNeighbors(src, i, trg, config, k, aggregate=False,
-        with_distances=True):
+        with_distances=True, different_types=False, spec=''):
     if not aggregate:
         neighbor_file = config['NeighborFilePattern'].format(
-            SRC=src, SRC_RUN=i, TRG=trg
+            SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec
         )
         neighbor_vocab = config['NeighborVocabFilePattern'].format(
-            SRC=src, SRC_RUN=i, TRG=trg
+            SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec
         )
+        if different_types:
+            query_vocab = config['QueryVocabFilePattern'].format(
+                SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec
+            )
     else:
         neighbor_file = config['AggregateNeighborFilePattern'].format(
-            SRC=src, TRG=trg
+            SRC=src, TRG=trg, SPEC=spec
         )
         neighbor_vocab = config['AggregateNeighborVocabFilePattern'].format(
-            SRC=src, TRG=trg
+            SRC=src, TRG=trg, SPEC=spec
         )
+        if different_types:
+            query_vocab = config['AggregateQueryVocabFilePattern'].format(
+                SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec
+            )
 
     node_map = readNodeMap(neighbor_vocab)
+    if different_types:
+        query_node_map = readNodeMap(query_vocab)
+    else: query_node_map = None
 
     neighbors = readNeighborFile(
         neighbor_file,
         k=k,
         node_map=node_map,
-        with_distances=with_distances
+        with_distances=with_distances,
+        query_node_map=query_node_map
     )
 
     return neighbors
