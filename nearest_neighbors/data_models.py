@@ -22,6 +22,18 @@ class EntityOverlapAnalysis:
         self.CWS = CWS
         self.string = string
 
+class InternalConfidence:
+    source = None
+    at_k = None
+    key = None
+    confidence = None
+
+    def __init__(self, source, at_k, key, confidence):
+        self.source = source
+        self.at_k = at_k
+        self.key = key
+        self.confidence = confidence
+
 class AggregateNearestNeighbor:
     source = None
     target = None

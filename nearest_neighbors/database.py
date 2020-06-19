@@ -50,6 +50,20 @@ class EmbeddingNeighborhoodDatabase:
         ''')
 
 
+        ## the InternalConfidence table stores outputs from self-paired
+        ## neighborhood analysis
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS InternalConfidence
+        (
+            Source text,
+            AtK int,
+            EntityKey text,
+            Confidence real,
+            UNIQUE(Source, AtK, EntityKey)
+        )
+        ''')
+
+
         ## the AggregateNearestNeighbors table stores nearest neighbors
         ## aggregated across multiple source runs
         ## (NB nearest neighbors are calculated within Source only; the
@@ -108,6 +122,8 @@ class EmbeddingNeighborhoodDatabase:
 
         if type(objects[0]) is EntityOverlapAnalysis:
             self.insertOrUpdateIntoEntityOverlapAnalysis(objects, *args, **kwargs)
+        elif type(objects[0]) is InternalConfidence:
+            self.insertOrUpdateIntoInternalConfidence(objects, *args, **kwargs)
         elif type(objects[0]) is AggregateNearestNeighbor:
             self.insertOrUpdateIntoAggregateNearestNeighbors(objects, *args, **kwargs)
         elif type(objects[0]) is EntityTerm:
@@ -129,6 +145,28 @@ class EmbeddingNeighborhoodDatabase:
             '''
             REPLACE INTO EntityOverlapAnalysis VALUES (
                 ?, ?, ?, ?, ?, ?, ?
+            )
+            ''',
+            rows
+        )
+
+        self._connection.commit()
+
+    def insertOrUpdateIntoInternalConfidence(self, confidences):
+        if (not type(confidences) is list) and (not type(confidences) is tuple):
+            confidences = [confidences]
+            
+        rows = [
+            (
+                c.source, c.at_k, c.key, c.confidence
+            )
+                for c in confidences
+        ]
+
+        self._cursor.executemany(
+            '''
+            REPLACE INTO InternalConfidence VALUES (
+                ?, ?, ?, ?
             )
             ''',
             rows
