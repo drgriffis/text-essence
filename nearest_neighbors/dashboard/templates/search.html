@@ -16,12 +16,12 @@
                 {% for row in rows %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('neighbors', query_key=row.Key, corpora=corpora) }}">
+                        <a href="{{ url_for('info', query_key=row.Key, corpora=corpora) }}">
                             {{ row.Key }}
                         </a>
                     </td>
                     <td>
-                        <a href="{{ url_for('neighbors', query_key=row.Key, corpora=corpora) }}">
+                        <a href="{{ url_for('info', query_key=row.Key, corpora=corpora) }}">
                             {{ row.Term }}
                         </a>
                     </td>

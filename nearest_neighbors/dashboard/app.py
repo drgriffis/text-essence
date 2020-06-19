@@ -1,6 +1,7 @@
 from flask import Flask
 from flask import render_template
 from flask import request
+from flask import jsonify
 app = Flask(__name__)
 
 import os
@@ -36,7 +37,7 @@ def showChanges(src=None, trg=None, at_k=None):
         source_confidence_threshold=0.5,
         target_confidence_threshold=0.5,
         order_by='CWD DESC',
-        limit=10
+        limit=50
     )
     for row in cwd_rows:
         top_cwd.append({
@@ -78,28 +79,34 @@ def showChanges(src=None, trg=None, at_k=None):
     )
 
 
-@app.route('/neighbors', methods=['POST'])
-@app.route('/neighbors/<query_key>', methods=['GET', 'POST'])
-def neighbors(query_key=None):
+@app.route('/info', methods=['POST'])
+@app.route('/info/<query_key>', methods=['GET', 'POST'])
+def info(query_key=None):
     if request.method == 'GET':
         getter = request.args.get
+        lgetter = lambda key,default: request.args.get(key, default).split(',')
     else:
         getter = request.form.get
+        lgetter = lambda key, default: request.form.getlist(key)
 
     if query_key is None:
         query_key = getter('query_key', None)
     
-    corpora = getter('corpora', '').split(',')
+    corpora = lgetter('corpora', '')
+    neighbor_type = getter('neighbor_type', 'ENTITY')
+    neighbor_type = EmbeddingType.parse(neighbor_type)
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
 
     tables = []
-    for corpus in corpora:
+    TABLES_PER_ROW = 3
+    for i in range(len(corpora)):
+        corpus = corpora[i]
         rows = db.selectFromAggregateNearestNeighbors(
             corpus,
             corpus,
             query_key,
-            neighbor_type=EmbeddingType.CONTEXT,
+            neighbor_type=neighbor_type,
             limit=10
         )
 
@@ -114,10 +121,32 @@ def neighbors(query_key=None):
         tables.append({
             'Corpus': corpus,
             'Rows': table_rows,
+            'IsGridRowStart': (i % TABLES_PER_ROW) == 0,
+            'IsGridRowEnd': (i % TABLES_PER_ROW) == (TABLES_PER_ROW - 1),
+            'IsCorpusTable': True
         })
 
+    # add a placeholder for the "add a table" button
+    tables.append({
+        'IsCorpusTable': False
+    })
+
+    all_terms = db.selectFromEntityTerms(
+        query_key
+    )
+    term_list = []
+    for term in all_terms:
+        if term.preferred == 1:
+            preferred_term = term.term
+        else:
+            term_list.append(term.term)
+
     return render_template(
-        'neighbors.html',
+        'info.html',
+        query_key=query_key,
+        preferred_term=preferred_term,
+        all_terms=sorted(term_list),
+        corpora=(','.join(corpora)),
         tables=tables
     )
 
@@ -181,3 +210,24 @@ def search(query=None):
         rows=table_rows,
         corpora='2020-03-27,2020-04-03'  ## hard-coded value for now
     )
+
+
+@app.route('/_get_aggregate_nearest_neighbors_membership')
+def getAggregateNearestNeighborsMembership():
+    query_key = request.args.get('query_key', None)
+    current_corpora = request.args.get('current_corpora', '')
+
+    current_corpora = set(current_corpora.split(','))
+
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+
+    rows = db.findAggregateNearestNeighborsMembership(query_key)
+
+    table_rows = []
+    for row in sorted(rows):
+        table_rows.append({
+            'Source': row,
+            'Checked': 1 if row in current_corpora else 0
+        })
+
+    return jsonify(table_rows)

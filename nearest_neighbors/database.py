@@ -378,6 +378,24 @@ class EmbeddingNeighborhoodDatabase:
             yield ret_obj
 
 
+    def findAggregateNearestNeighborsMembership(self, key,
+            neighbor_type=EmbeddingType.ENTITY):
+        query = '''
+        SELECT
+            DISTINCT(Source)
+        FROM
+            AggregateNearestNeighbors
+        WHERE
+            EntityKey=?
+        '''
+        args = [key]
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (source,) = row
+            yield source
+
+
     def selectFromEntityTerms(self, key):
         query = '''
         SELECT

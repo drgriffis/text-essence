@@ -1,0 +1,18 @@
+#addTableButtonContainer {
+    position: relative;
+    padding-top: 50%;
+    height: 250px;
+}
+#sourceSelectionPanel {
+    display: none;
+    position: absolute;
+    top: 85%;
+    width: 50%;
+    left: 25%;
+    padding: 15px;
+    border: 1px solid black;
+}
+#addTableButton {
+    text-align: center;
+    width: 100%;
+}

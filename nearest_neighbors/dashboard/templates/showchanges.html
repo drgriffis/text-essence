@@ -18,7 +18,7 @@
                 {% for cwd in top_cwd %}
                 <tr>
                     <td>
-                        <a href="/neighbors/{{ cwd.Key }}?corpora={{ src }},{{ trg }}">
+                        <a href="/info/{{ cwd.Key }}?corpora={{ src }},{{ trg }}">
                             {{ cwd.Key }} <i>{{ cwd.String }}</i>
                         </a>
                     </td>
@@ -42,7 +42,7 @@
                 {% for cws in top_cws %}
                 <tr>
                     <td>
-                        <a href="/neighbors/{{ cws.Key }}?corpora={{ src }},{{ trg }}">
+                        <a href="/info/{{ cws.Key }}?corpora={{ src }},{{ trg }}">
                             {{ cws.Key }} <i>{{ cws.String }}</i>
                         </a>
                     </td>
