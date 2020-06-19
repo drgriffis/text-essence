@@ -349,6 +349,52 @@ class EmbeddingNeighborhoodDatabase:
             yield ret_obj
 
 
+    def selectFromInternalConfidence(self, src=None, at_k=None, key=None):
+        query = '''
+        SELECT
+            *
+        FROM
+            InternalConfidence
+        {0}{1}
+        '''
+
+        where_conds, args = [], []
+        if not (src is None):
+            where_conds.append('Source=?')
+            args.append(src)
+        if not (at_k is None):
+            where_conds.append('AtK=?')
+            args.append(at_k)
+        if not (key is None):
+            where_conds.append('EntityKey=?')
+            args.append(key)
+
+        if len(where_conds) > 0:
+            where_conds = ' AND '.join(where_conds)
+            query = query.format(
+                'WHERE ',
+                where_conds
+            )
+        else:
+            query = query.format('', '')
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                source,
+                at_k,
+                entity_key,
+                confidence
+            ) = row
+            ret_obj = InternalConfidence(
+                source=source,
+                at_k=at_k,
+                key=entity_key,
+                confidence=confidence
+            )
+            yield ret_obj
+
+
     def selectFromAggregateNearestNeighbors(self, src, trg, key,
             neighbor_type=EmbeddingType.ENTITY, limit=10):
 
