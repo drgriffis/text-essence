@@ -1,5 +1,50 @@
 SHELL=/bin/bash
 PY=python
+DATADIR=CORD-19
+
+download_CORD19_corpus:
+	@if [ -z "${CORPUS}" ]; then \
+		echo "Must specify CORPUS"; \
+		exit; \
+	fi; \
+	DISTRIBDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} DistribDirectory); \
+	if [ ! -d "$${DISTRIB}" ]; then \
+		echo "Distribution directory $${DISTRIBDIR} does not exist.  Attempt to recursively create it? [y/n]"; \
+		read CREATEDISTRIBDIR; \
+		if [ "$${CREATEDISTRIBDIR}" = "y" ]; then \
+			mkdir -p $${DISTRIBDIR}; \
+		else \
+			exit; \
+		fi; \
+	fi; \
+	cd $${DISTRIBDIR}; \
+	wget https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/historical_releases/cord-19_${CORPUS}.tar.gz; \
+	mv cord-19_${CORPUS}.tar.gz cord-19_${CORPUS}.tar.bz2; \
+	tar -xzvf cord-19_${CORPUS}.tar.bz2; \
+	mv ${CORPUS}/* .; \
+	rmdir ${CORPUS}
+
+download_CORD19_corpus_OLD:
+	@if [ -z "${CORPUS}" ]; then \
+		echo "Must specify CORPUS"; \
+		exit; \
+	fi; \
+	DISTRIBDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} DistribDirectory); \
+	if [ ! -d "$${EXTRACTDIR}" ]; then \
+		echo "Extraction directory $${EXTRACTDIR} does not exist.  Attempt to recursively create it? [y/n]"; \
+		read CREATEDISTRIBDIR; \
+		if [ "$${CREATEDISTRIBDIR}" = "y" ]; then \
+			mkdir -p $${DISTRIBDIR}; \
+		else \
+			exit; \
+		fi; \
+	fi; \
+	cd $${DISTRIBDIR}; \
+	wget https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/${CORPUS}/comm_use_subset.tar.gz; \
+	wget https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/${CORPUS}/noncomm_use_subset.tar.gz; \
+	wget https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/${CORPUS}/custom_license.tar.gz; \
+	wget https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/${CORPUS}/biorxiv_medrxiv.tar.gz; \
+	wget https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/${CORPUS}/metadata.csv
 
 extract_corpus:
 	@if [ -z "${CORPUS}" ]; then \
@@ -8,6 +53,18 @@ extract_corpus:
 	fi; \
 	DISTRIBDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} DistribDirectory); \
 	EXTRACTDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} ExtractedDirectory); \
+	NEWFORMAT=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} NewFormat); \
+	ABSTRACTONLY=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} AbstractOnly); \
+	if [ "$${NEWFORMAT}" = "True" ]; then \
+		NEWFORMATFLAG="--new-format"; \
+	else \
+		NEWFORMATFLAG=; \
+	fi; \
+	if [ "$${ABSTRACTONLY}" = "True" ]; then \
+		ABSTRACTONLYFLAG="--abstract-only"; \
+	else \
+		ABSTRACTONLYFLAG=; \
+	fi; \
 	if [ ! -d "$${EXTRACTDIR}" ]; then \
 		echo "Extraction directory $${EXTRACTDIR} does not exist.  Attempt to recursively create it? [y/n]"; \
 		read CREATEEXTRACTDIR; \
@@ -20,6 +77,8 @@ extract_corpus:
 	${PY} -m corpus.extract_corpus \
 		-d $${DISTRIBDIR} \
 		-o $${EXTRACTDIR}/corpus.txt \
+		$${NEWFORMATFLAG} \
+		$${ABSTRACTONLYFLAG} \
 		-l $${EXTRACTDIR}/corpus.log
 
 preprocess:
@@ -147,10 +206,15 @@ tag_corpus:
 	JET=$$(${PY} -m cli_configparser.read_setting -c config.ini General JETInstallation); \
 	CORPUSDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} ExtractedDirectory); \
 	TERMINOLOGYDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${TERMINOLOGY} ExtractedDirectory); \
-	OUTPUTDIR=$${CORPUSDIR}/tokenized${SPEC}; \
+	INPUTDIR=$${CORPUSDIR}/tokenized${SPEC}; \
+	if [ -z "${OUTPUTDIR}" ]; then \
+		OUTPUTDIR=$${INPUTDIR}; \
+	else \
+		OUTPUTDIR=${OUTPUTDIR}; \
+	fi; \
 	cd $${JET}; \
 	${PY} -m preprocessing.tagcorpus \
-		-i $${OUTPUTDIR}/preprocessed_corpus.txt \
+		-i $${INPUTDIR}/preprocessed_corpus.txt \
 		-t $${TERMINOLOGYDIR}/tokenized${SPEC}/terminology.ngram_term_map.pkl.gz \
 		-o $${OUTPUTDIR}/preprocessed_corpus.$${TERMINOLOGY}__tokenized${SPEC}.annotations \
 		-l $${OUTPUTDIR}/preprocessed_corpus.$${TERMINOLOGY}__tokenized${SPEC}.annotations.log \
@@ -193,3 +257,68 @@ run_JET:
 		-term-vocab $${OUTPUTDIR}/vocabs.term \
 		-term-map $${TERMINOLOGYDIR}/tokenized${SPEC}/terminology.term_to_entity_map.txt \
 		-string-map $${TERMINOLOGYDIR}/tokenized${SPEC}/terminology.term_to_string_map.txt
+
+
+
+distribute_JET:
+	@if [ -z "${CORPUS}" ]; then \
+		echo "Must specify CORPUS"; \
+		exit; \
+	fi; \
+	if [ -z "${TERMINOLOGY}" ]; then \
+		echo "Must specify TERMINOLOGY"; \
+		exit; \
+	fi; \
+	if [ -z "${SPEC}" ]; then \
+		echo "Must specify SPEC"; \
+		exit; \
+	fi; \
+	if [ -z "${OUTPUT}" ]; then \
+		echo "Must specify OUTPUT"; \
+		exit; \
+	fi; \
+	CORPUSDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} ExtractedDirectory); \
+	TERMINOLOGYDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${TERMINOLOGY} ExtractedDirectory); \
+	OUTPUTDIR=$${CORPUSDIR}/tokenized${SPEC}; \
+	if [ ! -d "$${OUTPUTDIR}/embeddings" ]; then \
+		echo "No embeddings found in $${OUTPUTDIR}"; \
+		exit; \
+	fi; \
+	cd $${OUTPUTDIR}/embeddings${EMBSPEC}; \
+	if [ -d "__distrib__" ]; then \
+		rm -rf __distrib__; \
+	fi; \
+	mkdir __distrib__; \
+	${PY} -m pyemblib.convert --from word2vec-binary --to word2vec-text \
+		words.bin __distrib__/words.txt; \
+	${PY} -m pyemblib.convert --from word2vec-binary --to word2vec-text \
+		terms.bin __distrib__/terms.txt; \
+	${PY} -m pyemblib.convert --from word2vec-binary --to word2vec-text \
+		entities.bin __distrib__/concepts.txt; \
+	cp $${TERMINOLOGYDIR}/tokenized${SPEC}/terminology.term_to_string_map.txt \
+		__distrib__/term_ID_to_string_map.txt; \
+	echo "--------------------------" > __distrib__/README; \
+	echo "Pre-trained JET embeddings" >> __distrib__/README; \
+	echo "--------------------------" >> __distrib__/README; \
+	echo "" >> __distrib__/README; \
+	echo "The contents of this zip file are as follows:" >> __distrib__/README; \
+	echo "  README :: description and JET training configuration" >> __distrib__/README; \
+	echo "  concepts.txt :: Embeddings for each SNOMED-CT code in the 2020-03-09 release" >> __distrib__/README; \
+	echo "  terms.txt :: Embeddings for each unique term (description string) in the 2020-03-09 release of SNOMED-CT" >> __distrib__/README; \
+	echo "  words.txt :: Static word embeddings" >> __distrib__/README; \
+	echo "  term_ID_to_string_map.txt :: Mapping from term embedding IDs (in terms.txt) to SNOMED-CT strings" >> __distrib__/README; \
+	echo "" >> __distrib__/README; \
+	echo "Embedding files are in the standard format readable by gensim or the lightweight pyemblib Python modules." >> __distrib__/README; \
+	echo "" >> __distrib__/README; \
+	echo "Example loading with gensim:" >> __distrib__/README; \
+	echo "  from gensim.models import KeyedVectors" >> __distrib__/README; \
+	echo "  embeddings = KeyedVectors.load_word2vec_format('concepts.txt', binary=False)" >> __distrib__/README; \
+	echo "" >> __distrib__/README; \
+	echo "Example loading with pyemblib:" >> __distrib__/README; \
+	echo "  import pyemblib" >> __distrib__/README; \
+	echo "  embeddings = pyemblib.read('concepts.txt', mode=pyemblib.Mode.Text)" >> __distrib__/README; \
+	echo "" >> __distrib__/README; \
+	echo "" >> __distrib__/README; \
+	head -n 14 config.log >> __distrib__/README; \
+	cd __distrib__; \
+	zip ${OUTPUT}.zip *.txt README; \
