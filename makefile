@@ -65,6 +65,12 @@ extract_corpus:
 	else \
 		ABSTRACTONLYFLAG=; \
 	fi; \
+	if [ -z "${REFCORPUS}" ]; then \
+		REFDIRFLAG=; \
+	else \
+		REFDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${REFCORPUS} DistribDirectory); \
+		REFDIRFLAG="--reference-directory $${REFDIR}"; \
+	fi; \
 	if [ ! -d "$${EXTRACTDIR}" ]; then \
 		echo "Extraction directory $${EXTRACTDIR} does not exist.  Attempt to recursively create it? [y/n]"; \
 		read CREATEEXTRACTDIR; \
@@ -79,6 +85,7 @@ extract_corpus:
 		-o $${EXTRACTDIR}/corpus.txt \
 		$${NEWFORMATFLAG} \
 		$${ABSTRACTONLYFLAG} \
+		$${REFDIRFLAG} \
 		-l $${EXTRACTDIR}/corpus.log
 
 preprocess:

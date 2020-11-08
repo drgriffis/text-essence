@@ -3,3 +3,4 @@ hedgepig_logger
 pyemblib
 nltk
 spacy
+scispacy
