@@ -40,12 +40,13 @@ class EmbeddingNeighborhoodDatabase:
         (
             Source text,
             Target text,
+            FilterSet text,
             AtK int,
             EntityKey text,
             SourceConfidence real,
             TargetConfidence real,
             ENSimilarity real,
-            UNIQUE(Source, Target, AtK, EntityKey)
+            UNIQUE(Source, Target, FilterSet, AtK, EntityKey)
         )
         ''')
 
@@ -93,8 +94,9 @@ class EmbeddingNeighborhoodDatabase:
         (
             Source text,
             Target text,
+            FilterSet text,
             NeighborID int,
-            UNIQUE(Source, Target, NeighborID),
+            UNIQUE(Source, Target, FilterSet, NeighborID),
             CONSTRAINT FK_NeighborID
                 FOREIGN KEY (NeighborID)
                 REFERENCES AggregateNearestNeighbors(ID)
@@ -135,8 +137,8 @@ class EmbeddingNeighborhoodDatabase:
             
         rows = [
             (
-                o.source, o.target, o.at_k, o.key, o.source_confidence,
-                o.target_confidence, o.EN_similarity
+                o.source, o.target, o.filter_set, o.at_k, o.key,
+                o.source_confidence, o.target_confidence, o.EN_similarity
             )
                 for o in overlaps
         ]
@@ -144,7 +146,7 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.executemany(
             '''
             REPLACE INTO EntityOverlapAnalysis VALUES (
-                ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?
             )
             ''',
             rows
@@ -235,11 +237,11 @@ class EmbeddingNeighborhoodDatabase:
 
             ## (3) finally, add the source/target relationship to
             ##     AggregateNearestNeighborSubsets
-            row = (nbr.source, nbr.target, nbr_ID)
+            row = (nbr.source, nbr.target, nbr.filter_set, nbr_ID)
             self._cursor.execute(
                 '''
                 REPLACE INTO AggregateNearestNeighborSubsets VALUES (
-                    ?, ?, ?
+                    ?, ?, ?, ?
                 )
                 ''',
                 row
@@ -270,7 +272,7 @@ class EmbeddingNeighborhoodDatabase:
         self._connection.commit()
 
 
-    def selectFromEntityOverlapAnalysis(self, src, trg, at_k,
+    def selectFromEntityOverlapAnalysis(self, src, trg, filter_set, at_k,
             source_confidence_threshold=None, target_confidence_threshold=None,
             order_by='CWD', limit=10):
 
@@ -289,6 +291,7 @@ class EmbeddingNeighborhoodDatabase:
         WHERE
             eoa.Source=?
             AND eoa.Target=?
+            AND eoa.FilterSet=?
             AND eoa.AtK=?
             AND et.Preferred=1
             {0}
@@ -325,6 +328,7 @@ class EmbeddingNeighborhoodDatabase:
             (
                 source,
                 target,
+                filter_set,
                 at_k,
                 key,
                 source_confidence,
@@ -337,6 +341,7 @@ class EmbeddingNeighborhoodDatabase:
             ret_obj = EntityOverlapAnalysis(
                 source=source,
                 target=target,
+                filter_set=filter_set,
                 at_k=at_k,
                 key=key,
                 source_confidence=source_confidence,
@@ -395,13 +400,14 @@ class EmbeddingNeighborhoodDatabase:
             yield ret_obj
 
 
-    def selectFromAggregateNearestNeighbors(self, src, trg, key,
+    def selectFromAggregateNearestNeighbors(self, src, trg, filter_set, key,
             neighbor_type=EmbeddingType.ENTITY, limit=10):
 
         query = '''
         SELECT
             ann.Source,
             anns.Target,
+            anns.FilterSet,
             ann.EntityKey,
             ann.NeighborKey,
             ann.MeanDistance,
@@ -426,6 +432,7 @@ class EmbeddingNeighborhoodDatabase:
         WHERE
             ann.Source=?
             AND anns.Target=?
+            AND anns.FilterSet=?
             AND ann.EntityKey=?
             AND ann.NeighborType=?
         ORDER BY ann.MeanDistance ASC
@@ -435,6 +442,7 @@ class EmbeddingNeighborhoodDatabase:
         args = [
             src,
             trg,
+            filter_set,
             key,
             neighbor_type
         ]
@@ -444,6 +452,7 @@ class EmbeddingNeighborhoodDatabase:
             (
                 source,
                 target,
+                filter_set,
                 entity_key,
                 neighbor_key,
                 mean_distance,
@@ -453,6 +462,7 @@ class EmbeddingNeighborhoodDatabase:
             ret_obj = AggregateNearestNeighbor(
                 source=source,
                 target=target,
+                filter_set=filter_set,
                 key=entity_key,
                 string=query_term,
                 neighbor_key=neighbor_key,

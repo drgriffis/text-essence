@@ -5,11 +5,12 @@ from ..data_models import *
 from ..database import *
 
 def loadAggregateNeighbors(src, trg, config, db, k=10, neighbor_type=None,
-        spec=''):
+        spec='', filter_spec=''):
     log.writeln('  >> Loading pre-calculated aggregate nearest neighbors')
     aggregate_neighbors = nn_io.loadPairedNeighbors(
         src, None, trg, config, k, aggregate=True, with_distances=True,
-        different_types=(not neighbor_type is None), spec=spec
+        different_types=(not neighbor_type is None), spec=spec,
+        filter_spec=filter_spec
     )
 
     if neighbor_type is None: neighbor_type = EmbeddingType.ENTITY
@@ -21,6 +22,7 @@ def loadAggregateNeighbors(src, trg, config, db, k=10, neighbor_type=None,
             nbrs.append(AggregateNearestNeighbor(
                 source=src,
                 target=trg,
+                filter_set=filter_spec,
                 key=key,
                 neighbor_key=nbr_key,
                 mean_distance=dist
@@ -46,6 +48,8 @@ if __name__ == '__main__':
             default=None)
         parser.add_option('--neighbor-spec', dest='neighbor_spec',
             default='', help='specifier to help locate neighbor file')
+        parser.add_option('--filter-spec', dest='filter_spec',
+            default='', help='specifier of key filter set used to generate neighbor file')
         parser.add_option('-l', '--logfile', dest='logfile',
             help='name of file to write log contents to (empty for stdout)',
             default=None)
@@ -66,10 +70,12 @@ if __name__ == '__main__':
     log.writeConfig([
         ('Source specifier', options.src),
         ('Target specifier', options.trg),
+        ('Filter specifier', options.filter_spec),
         ('Configuration file', options.configf),
         ('Number of nearest neighbors to add to DB', options.k),
         ('Nearest neighbor type', ('N/A' if options.neighbor_type is None else options.neighbor_type)),
         ('Nearest neighbor file specifier', options.neighbor_spec),
+        ('Key filter specifier', options.filter_spec),
     ], 'Loading aggregate neighbors into DB')
 
     log.writeln('Reading configuration file from %s...' % options.configf)
@@ -94,7 +100,8 @@ if __name__ == '__main__':
         db,
         k=options.k,
         neighbor_type=neighbor_type,
-        spec=options.neighbor_spec
+        spec=options.neighbor_spec,
+        filter_spec=options.filter_spec
     )
     log.writeln('Done.')
 

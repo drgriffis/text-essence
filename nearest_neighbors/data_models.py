@@ -1,6 +1,7 @@
 class EntityOverlapAnalysis:
     source = None
     target = None
+    filter_set = None
     at_k = None
     key = None
     source_confidence = None
@@ -10,9 +11,10 @@ class EntityOverlapAnalysis:
     CWS = None
     string = None
 
-    def __init__(self, source, target, at_k, key, source_confidence, target_confidence, EN_similarity, CWD=None, CWS=None, string=None):
+    def __init__(self, source, target, filter_set, at_k, key, source_confidence, target_confidence, EN_similarity, CWD=None, CWS=None, string=None):
         self.source = source
         self.target = target
+        self.filter_set = filter_set
         self.at_k = at_k
         self.key = key
         self.source_confidence = source_confidence
@@ -28,7 +30,7 @@ class InternalConfidence:
     key = None
     confidence = None
 
-    def __init__(self, source, at_k, key, confidence):
+    def __init__(self, source, filter_set, at_k, key, confidence):
         self.source = source
         self.at_k = at_k
         self.key = key
@@ -37,15 +39,17 @@ class InternalConfidence:
 class AggregateNearestNeighbor:
     source = None
     target = None
+    filter_set = None
     key = None
     string = None
     neighbor_key = None
     neighbor_string = None
     mean_distance = None
 
-    def __init__(self, source, target, key, neighbor_key, mean_distance, string=None, neighbor_string=None):
+    def __init__(self, source, target, filter_set, key, neighbor_key, mean_distance, string=None, neighbor_string=None):
         self.source = source
         self.target = target
+        self.filter_set = filter_set
         self.key = key
         self.string = string
         self.neighbor_key = neighbor_key

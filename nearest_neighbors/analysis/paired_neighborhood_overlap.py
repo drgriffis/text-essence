@@ -79,7 +79,7 @@ def rankKeysByMeanDeltaFromBaseline(control_overlap_percentage_means,
 
 
 def analyzeOverlap(src, trg, config, db, k=5,
-        confidence_threshold=0.5):
+        confidence_threshold=0.5, filter_spec=''):
     src_neighbor_sets = []
     trg_neighbor_sets = []
 
@@ -90,14 +90,16 @@ def analyzeOverlap(src, trg, config, db, k=5,
             i,
             trg,
             config,
-            k=k
+            k=k,
+            filter_spec=filter_spec
         ))
         trg_neighbor_sets.append(nn_io.loadPairedNeighbors(
             trg,
             i,
             src,
             config,
-            k=k
+            k=k,
+            filter_spec=filter_spec
         ))
         log.tick()
     log.flushTracker()
@@ -134,6 +136,7 @@ def analyzeOverlap(src, trg, config, db, k=5,
         overlaps.append(EntityOverlapAnalysis(
             source=src,
             target=trg,
+            filter_set=filter_spec,
             at_k=k,
             key=key,
             source_confidence=src_self_distribs[key],
@@ -151,6 +154,8 @@ if __name__ == '__main__':
             help='(required) source specifier')
         parser.add_option('-t', '--trg', dest='trg',
             help='(required) target specifier')
+        parser.add_option('--filter-spec', dest='filter_spec',
+            help='(optional) filter specified')
         parser.add_option('-c', '--config', dest='configf',
             default='config.ini')
         parser.add_option('-k', '--nearest-neighbors', dest='k',
@@ -175,6 +180,7 @@ if __name__ == '__main__':
     log.writeConfig([
         ('Source specifier', options.src),
         ('Target specifier', options.trg),
+        ('Filter specifier', options.filter_spec),
         ('Configuration file', options.configf),
         ('Number of nearest neighbors to analyze', options.k),
         ('String map file', options.string_mapf)
@@ -203,7 +209,8 @@ if __name__ == '__main__':
         options.trg,
         config,
         db,
-        k=options.k
+        k=options.k,
+        filter_spec=options.filter_spec
     )
     log.writeln('Extracted statistics.\n')
 

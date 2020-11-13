@@ -112,28 +112,29 @@ def readSet(f, to_lower=False):
     return _set
 
 def loadPairedNeighbors(src, i, trg, config, k, aggregate=False,
-        with_distances=True, different_types=False, spec=''):
+        with_distances=True, different_types=False, spec='',
+        filter_spec=''):
     if not aggregate:
         neighbor_file = config['NeighborFilePattern'].format(
-            SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec
+            SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec, FILSPEC=filter_spec 
         )
         neighbor_vocab = config['NeighborVocabFilePattern'].format(
-            SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec
+            SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec, FILSPEC=filter_spec
         )
         if different_types:
             query_vocab = config['QueryVocabFilePattern'].format(
-                SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec
+                SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec, FILSPEC=filter_spec
             )
     else:
         neighbor_file = config['AggregateNeighborFilePattern'].format(
-            SRC=src, TRG=trg, SPEC=spec
+            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec
         )
         neighbor_vocab = config['AggregateNeighborVocabFilePattern'].format(
-            SRC=src, TRG=trg, SPEC=spec
+            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec
         )
         if different_types:
             query_vocab = config['AggregateQueryVocabFilePattern'].format(
-                SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec
+                SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec, FILSPEC=filter_spec
             )
 
     node_map = readNodeMap(neighbor_vocab)
