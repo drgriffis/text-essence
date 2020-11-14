@@ -279,8 +279,13 @@ class EmbeddingNeighborhoodDatabase:
         base_query = '''
         SELECT
             eoa.*,
-            (eoa.SourceConfidence * eoa.TargetConfidence * (eoa.SourceConfidence - eoa.ENSimilarity)) AS CWD,
-            (eoa.SourceConfidence * eoa.TargetConfidence * eoa.ENSimilarity) AS CWS,
+            ic_src.Confidence AS SourceInternalConfidence,
+            ic_trg.Confidence AS TargetInternalConfidence,
+            (
+                ic_src.Confidence
+                * ic_trg.Confidence
+                * (1 - eoa.ENSimilarity)
+            ) AS CWD,
             et.Term
         FROM
             EntityOverlapAnalysis AS eoa
@@ -288,6 +293,18 @@ class EmbeddingNeighborhoodDatabase:
             EntityTerms AS et
         ON
             et.EntityKey = eoa.EntityKey
+        INNER JOIN
+            InternalConfidence AS ic_src
+        ON
+            ic_src.EntityKey = eoa.EntityKey
+            AND ic_src.AtK = eoa.AtK
+            AND ic_src.Source = eoa.Source
+        INNER JOIN
+            InternalConfidence AS ic_trg
+        ON
+            ic_trg.EntityKey = eoa.EntityKey
+            AND ic_trg.AtK = eoa.AtK
+            AND ic_trg.Source = eoa.Target
         WHERE
             eoa.Source=?
             AND eoa.Target=?
@@ -302,17 +319,18 @@ class EmbeddingNeighborhoodDatabase:
         args = [
             src,
             trg,
+            filter_set,
             at_k
         ]
 
         if not (source_confidence_threshold is None):
-            src_conf_cond = 'AND eoa.SourceConfidence >= ?'
+            src_conf_cond = 'AND ic_src.Confidence >= ?'
             args.append(source_confidence_threshold)
         else:
             src_conf_cond = ''
 
         if not (target_confidence_threshold is None):
-            trg_conf_cond = 'AND eoa.TargetConfidence >= ?'
+            trg_conf_cond = 'AND ic_trg.Confidence >= ?'
             args.append(target_confidence_threshold)
         else:
             trg_conf_cond = ''
@@ -331,11 +349,12 @@ class EmbeddingNeighborhoodDatabase:
                 filter_set,
                 at_k,
                 key,
+                _,
+                _,
+                EN_similarity,
                 source_confidence,
                 target_confidence,
-                EN_similarity,
                 CWD,
-                CWS,
                 preferred_term
             ) = row
             ret_obj = EntityOverlapAnalysis(
@@ -348,7 +367,6 @@ class EmbeddingNeighborhoodDatabase:
                 target_confidence=target_confidence,
                 EN_similarity=EN_similarity,
                 CWD=CWD,
-                CWS=CWS,
                 string=preferred_term
             )
             yield ret_obj

@@ -8,10 +8,9 @@ class EntityOverlapAnalysis:
     target_confidence = None
     EN_similarity = None
     CWD = None
-    CWS = None
     string = None
 
-    def __init__(self, source, target, filter_set, at_k, key, source_confidence, target_confidence, EN_similarity, CWD=None, CWS=None, string=None):
+    def __init__(self, source, target, filter_set, at_k, key, source_confidence, target_confidence, EN_similarity, CWD=None, string=None):
         self.source = source
         self.target = target
         self.filter_set = filter_set
@@ -21,7 +20,6 @@ class EntityOverlapAnalysis:
         self.target_confidence = target_confidence
         self.EN_similarity = EN_similarity
         self.CWD = CWD
-        self.CWS = CWS
         self.string = string
 
 class InternalConfidence:

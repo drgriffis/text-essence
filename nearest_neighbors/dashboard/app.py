@@ -13,8 +13,8 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 
 @app.route('/showchanges', methods=['POST'])
-@app.route('/showchanges/<src>/<trg>/<at_k>', methods=['GET', 'POST'])
-def showChanges(src=None, trg=None, at_k=None):
+@app.route('/showchanges/<src>/<trg>/<filter_set>/<at_k>', methods=['GET', 'POST'])
+def showChanges(src=None, trg=None, filter_set=None, at_k=None):
     if request.method == 'GET':
         getter = request.args.get
     else:
@@ -24,22 +24,25 @@ def showChanges(src=None, trg=None, at_k=None):
         src = getter('src', None)
     if trg is None:
         trg = getter('trg', None)
+    if filter_set is None:
+        filter_set = getter('filter_set', None)
     if at_k is None:
         at_k = getter('at_k', None)
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
 
-    top_cwd, top_cws = [], []
-    cwd_rows = db.selectFromEntityOverlapAnalysis(
+    top_cwd, bottom_cwd = [], []
+    rows = db.selectFromEntityOverlapAnalysis(
         src,
         trg,
+        filter_set,
         at_k,
         source_confidence_threshold=0.5,
         target_confidence_threshold=0.5,
         order_by='CWD DESC',
         limit=50
     )
-    for row in cwd_rows:
+    for row in rows:
         top_cwd.append({
             'Key': row.key,
             'String': row.string,
@@ -49,23 +52,24 @@ def showChanges(src=None, trg=None, at_k=None):
             'CWD': packaging.prettify(row.CWD, decimals=2)
         })
 
-    cws_rows = db.selectFromEntityOverlapAnalysis(
+    rows = db.selectFromEntityOverlapAnalysis(
         src,
         trg,
+        filter_set,
         at_k,
         source_confidence_threshold=0.5,
         target_confidence_threshold=0.5,
-        order_by='CWS DESC',
+        order_by='CWD',
         limit=10
     )
-    for row in cws_rows:
-        top_cws.append({
+    for row in rows:
+        bottom_cwd.append({
             'Key': row.key,
             'String': row.string,
             'SourceConfidence': packaging.prettify(row.source_confidence, decimals=2),
             'TargetConfidence': packaging.prettify(row.target_confidence, decimals=2),
             'ENSimilarity': packaging.prettify(row.EN_similarity, decimals=2),
-            'CWS': packaging.prettify(row.CWS, decimals=2)
+            'CWD': packaging.prettify(row.CWD, decimals=2)
         })
 
     db.close()
@@ -73,7 +77,7 @@ def showChanges(src=None, trg=None, at_k=None):
     return render_template(
         'showchanges.html',
         top_cwd=top_cwd,
-        top_cws=top_cws,
+        bottom_cwd=bottom_cwd,
         src=src,
         trg=trg
     )
@@ -102,9 +106,11 @@ def info(query_key=None):
     TABLES_PER_ROW = 3
     for i in range(len(corpora)):
         corpus = corpora[i]
+        filter_set='.HC_{0}'.format(corpus)
         rows = db.selectFromAggregateNearestNeighbors(
             corpus,
             corpus,
+            filter_set,
             query_key,
             neighbor_type=neighbor_type,
             limit=10
@@ -134,7 +140,7 @@ def info(query_key=None):
     all_terms = db.selectFromEntityTerms(
         query_key
     )
-    term_list = []
+    term_list, preferred_term = [], ''
     for term in all_terms:
         if term.preferred == 1:
             preferred_term = term.term

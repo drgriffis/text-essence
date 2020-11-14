@@ -30,26 +30,26 @@
                 {% endfor %}
             </table>
         </div>
-        <div id="top_cws_panel">
+        <div id="bottom_cwd_panel">
             <table>
                 <tr>
                     <th>Key</th>
                     <th>Source Confidence</th>
                     <th>Target Confidence</th>
                     <th>EN Similarity</th>
-                    <th>CWS</th>
+                    <th>CWD</th>
                 </tr>
-                {% for cws in top_cws %}
+                {% for cwd in bottom_cwd %}
                 <tr>
                     <td>
-                        <a href="/info/{{ cws.Key }}?corpora={{ src }},{{ trg }}">
-                            {{ cws.Key }} <i>{{ cws.String }}</i>
+                        <a href="/info/{{ cwd.Key }}?corpora={{ src }},{{ trg }}">
+                            {{ cwd.Key }} <i>{{ cwd.String }}</i>
                         </a>
                     </td>
-                    <td>{{ cws.SourceConfidence }}</td>
-                    <td>{{ cws.TargetConfidence }}</td>
-                    <td>{{ cws.ENSimilarity }}</td>
-                    <td>{{ cws.CWS }}</td>
+                    <td>{{ cwd.SourceConfidence }}</td>
+                    <td>{{ cwd.TargetConfidence }}</td>
+                    <td>{{ cwd.ENSimilarity }}</td>
+                    <td>{{ cwd.CWD }}</td>
                 </tr>
                 {% endfor %}
             </table>
