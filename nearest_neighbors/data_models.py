@@ -6,11 +6,11 @@ class EntityOverlapAnalysis:
     key = None
     source_confidence = None
     target_confidence = None
-    EN_similarity = None
+    EN_similarity = None         ## TODO: change this field name to Overlap
     CWD = None
     string = None
 
-    def __init__(self, source, target, filter_set, at_k, key, source_confidence, target_confidence, EN_similarity, CWD=None, string=None):
+    def __init__(self, source, target, filter_set, at_k, key, source_confidence=None, target_confidence=None, EN_similarity=None, CWD=None, string=None):
         self.source = source
         self.target = target
         self.filter_set = filter_set

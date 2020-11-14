@@ -43,8 +43,6 @@ class EmbeddingNeighborhoodDatabase:
             FilterSet text,
             AtK int,
             EntityKey text,
-            SourceConfidence real,
-            TargetConfidence real,
             ENSimilarity real,
             UNIQUE(Source, Target, FilterSet, AtK, EntityKey)
         )
@@ -138,7 +136,7 @@ class EmbeddingNeighborhoodDatabase:
         rows = [
             (
                 o.source, o.target, o.filter_set, o.at_k, o.key,
-                o.source_confidence, o.target_confidence, o.EN_similarity
+                o.EN_similarity
             )
                 for o in overlaps
         ]
@@ -146,7 +144,7 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.executemany(
             '''
             REPLACE INTO EntityOverlapAnalysis VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?
             )
             ''',
             rows
@@ -285,7 +283,7 @@ class EmbeddingNeighborhoodDatabase:
                 ic_src.Confidence
                 * ic_trg.Confidence
                 * (1 - eoa.ENSimilarity)
-            ) AS CWD,
+            ) AS ConfidenceWeightedDelta,
             et.Term
         FROM
             EntityOverlapAnalysis AS eoa
@@ -349,8 +347,6 @@ class EmbeddingNeighborhoodDatabase:
                 filter_set,
                 at_k,
                 key,
-                _,
-                _,
                 EN_similarity,
                 source_confidence,
                 target_confidence,

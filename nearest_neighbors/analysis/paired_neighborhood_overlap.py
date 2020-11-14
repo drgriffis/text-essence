@@ -5,7 +5,7 @@ from .. import nn_io
 from ..data_models import *
 from ..database import EmbeddingNeighborhoodDatabase
 
-def getNeighborhoodOverlap(neighbors_1, neighbors_2, loglbl=''):
+def getNeighborhoodOverlap(neighbors_1, neighbors_2):
     overlap_percentages = {}
     ## TODO: under current workflow, union vs intersection should be identical here.
     ## However, should really check that.
@@ -21,14 +21,14 @@ def getNeighborhoodOverlap(neighbors_1, neighbors_2, loglbl=''):
         nbrs_2 = set([nbr_ID for (nbr_ID, dist) in nbr_info_2])
         overlap_count = len(nbrs_1.intersection(nbrs_2))
         overlap = overlap_count / (max(len(nbrs_1), len(nbrs_2)))
-        #log.writeln('[DEBUG] %sKey "%s"  Neighbors 1: [%s]  Neighbors 2: [%s]  Overlap: %.1f%%' % (
-        #    loglbl, key, ','.join(nbrs_1), ','.join(nbrs_2), 100*overlap
+        #log.writeln('[DEBUG] Key "%s"  Neighbors 1: [%s]  Neighbors 2: [%s]  Overlap: %.1f%%' % (
+        #    key, ','.join(nbrs_1), ','.join(nbrs_2), 100*overlap
         #))
         overlap_percentages[key] = overlap
 
     return overlap_percentages
 
-def pairedOverlapDistributions(neighbor_sets_1, neighbor_sets_2, self_paired=False, loglbl=''):
+def pairedOverlapDistributions(neighbor_sets_1, neighbor_sets_2, self_paired=False):
     # take all pairs of neighbor sets to compare
     #  if self_paired (i.e., comparing neighbors pulled from runs for the same
     #    subset), only do the unique pairs
@@ -39,8 +39,7 @@ def pairedOverlapDistributions(neighbor_sets_1, neighbor_sets_2, self_paired=Fal
         for j in range(inner_loop_start, len(neighbor_sets_2)):
             overlap_percentages = getNeighborhoodOverlap(
                 neighbor_sets_1[i],
-                neighbor_sets_2[j],
-                loglbl=loglbl
+                neighbor_sets_2[j]
             )
 
             for (key, perc) in overlap_percentages.items():
@@ -83,7 +82,7 @@ def analyzeOverlap(src, trg, config, db, k=5,
     src_neighbor_sets = []
     trg_neighbor_sets = []
 
-    log.track('  >> [1/7] Loaded {0:,}/10 neighbor sets')
+    log.track('  >> [1/3] Loaded {0:,}/10 neighbor sets')
     for i in range(1,11):
         src_neighbor_sets.append(nn_io.loadPairedNeighbors(
             src,
@@ -103,45 +102,25 @@ def analyzeOverlap(src, trg, config, db, k=5,
         ))
         log.tick()
     log.flushTracker()
-    
-    log.writeln('  >> [2/7] Calculating source self overlaps...')
-    src_self_distribs = pairedOverlapDistributions(
-        src_neighbor_sets,
-        src_neighbor_sets,
-        self_paired=True,
-        loglbl='SRC SELF '
-    )
-    log.writeln('  >> [3/7] Calculating target self overlaps...')
-    trg_self_distribs = pairedOverlapDistributions(
-        trg_neighbor_sets,
-        trg_neighbor_sets,
-        self_paired=True,
-        loglbl='TRG SELF '
-    )
-    log.writeln('  >> [4/7] Calculating cross overlaps...')
+
+    log.writeln('  >> [2/3] Calculating cross overlaps...')
     cross_distribs = pairedOverlapDistributions(
         src_neighbor_sets,
         trg_neighbor_sets,
-        self_paired=False,
-        loglbl='CROSS '
+        self_paired=False
     )
 
-    log.writeln('  >> [5/7] Adding overlap analyses to database...')
-    all_keys = set(src_self_distribs.keys())\
-        .union(set(trg_self_distribs.keys()))\
-        .union(set(cross_distribs.keys()))
+    log.writeln('  >> [3/3] Adding overlap analyses to database...')
 
     overlaps = []
-    for key in all_keys:
+    for (key, en_similarity) in cross_distribs.items():
         overlaps.append(EntityOverlapAnalysis(
             source=src,
             target=trg,
             filter_set=filter_spec,
             at_k=k,
             key=key,
-            source_confidence=src_self_distribs[key],
-            target_confidence=trg_self_distribs[key],
-            EN_similarity=cross_distribs[key]
+            EN_similarity=en_similarity
         ))
     db.insertOrUpdate(overlaps)
 
