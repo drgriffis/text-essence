@@ -9,99 +9,106 @@ from collections import OrderedDict
 from hedgepig_logger import log
 
 ## for file distributions prior to 5/12/20
-OLD_FILES = [
+SPLIT_FILES = [
     'comm_use_subset.tar.gz',
     'noncomm_use_subset.tar.gz',
     'custom_license.tar.gz',
     'biorxiv_medrxiv.tar.gz'
 ]
 ## for file distributions on or after 5/12/20
-NEW_FILES = [
+UNIFIED_FILES = [
     'document_parses.tar.gz'
 ]
 
+class Format:
+    Split_PDF_Only = 1
+    Split_PDF_And_PMC = 2
+    Unified = 3
+
+    @staticmethod
+    def parse(key):
+        if key.lower() == 'split_pdf_only':
+            return Format.Split_PDF_Only
+        elif key.lower() == 'split_pdf_and_pmc':
+            return Format.Split_PDF_And_PMC
+        elif key.lower() == 'unified':
+            return Format.Unified
+        else:
+            raise KeyError(key)
+
+    @staticmethod
+    def options():
+        return [
+            'Split_PDF_Only',
+            'Split_PDF_And_PMC',
+            'Unified'
+        ]
+
 class CORD19Dataset:
     
-    def __init__(self, data_dir, new_format=True):
+    def __init__(self, data_dir, data_format=Format.Unified):
         self._data_dir = data_dir
+        self._data_format = data_format
+
         self._keys = []
         self._file_counts = {}
         self._file_paths = {}
 
-        FILES = NEW_FILES if new_format else OLD_FILES
+        FILES = UNIFIED_FILES if (data_format == Format.Unified) else SPLIT_FILES
 
         for f in FILES:
             fpath = os.path.join(data_dir, f)
             if os.path.exists(fpath):
-                with tarfile.open(fpath, 'r') as tar:
-                    #num_files = len(tar.getmembers())
-                    num_files = 1  ##HACK
-                    if num_files > 0:
-                        self._keys.append(f)
-                        self._file_counts[f] = num_files
-                        self._file_paths[f] = fpath
+                self._file_paths[f] = fpath
 
-        self._current_key_ix = -1
-        self._current_tar = None
+        self._len = -1
 
     def __enter__(self):
-        self.openNextTar()
+        self._tar_streams = {
+            key.replace('.tar.gz', ''): tarfile.open(path)
+                for (key, path) in self._file_paths.items()
+        }
+        self._len = 0
+        for stream in self._tar_streams.values():
+            self._len += len(stream.getnames())
         return self
 
     def __exit__(self, type, value, traceback):
-        if self._current_tar:
-            self._current_tar.close()
-
-    def openNextTar(self):
-        if self._current_tar:
-            self._current_tar.close()
-
-        self._current_key_ix += 1
-        if self._current_key_ix >= len(self._keys):
-            raise IndexError
-
-        self._current_tar = tarfile.open(
-            self._file_paths[self._keys[self._current_key_ix]],
-            'r'
-        )
-        #self._current_files = list(self._current_tar.getmembers())
-        #self._current_file_ix = 0
-
-    def __next__(self):
-        if self._current_file_ix >= len(self._current_files) - 1:
-            try:
-                self.openNextTar()
-            except IndexError:
-                raise StopIteration
-
-        tarinfo = self._current_files[self._current_file_ix]
-        if tarinfo.isdir():
-            self._current_file_ix += 1
-            return next(self)
-        else:
-            tarfile = self._current_tar.extractfile(tarinfo)
-            data = json.loads(tarfile.read())
-
-            self._current_file_ix += 1
-            return data
+        for stream in self._tar_streams.values():
+            stream.close()
+        self._tar_streams = None
 
     def __len__(self):
-        return sum(self._file_counts.values())
+        return self._len
 
     def __iter__(self):
         return self
 
     def getJSON(self, key):
-        tarinfo = self._current_tar.getmember(key.strip())
-        tarfile = self._current_tar.extractfile(tarinfo)
-        data = json.loads(tarfile.read())
+        '''
+        NOTE if using the Split_PDF_And_PMC format,
+        MAKE SURE TO UNZIP THE .tar.gz files (tar files do not
+        correctly index into the contents)
+        '''
+        if self._data_format == Format.Split_PDF_Only:
+            tarkey = key.split('/')[0]
+            tarinfo = self._tar_streams[tarkey].getmember(key.strip())
+            tarfile = self._tar_streams[tarkey].extractfile(tarinfo)
+            data = json.loads(tarfile.read())
+        elif self._data_format == Format.Split_PDF_And_PMC:
+            with open(key, 'r') as stream:
+                data = json.loads(stream.read())
+        else:
+            tarinfo = self._tar_streams['document_parses'].getmember(key.strip())
+            tarfile = self._tar_streams['document_parses'].extractfile(tarinfo)
+            data = json.loads(tarfile.read())
         return data
 
 
 class CORD19Deltas(CORD19Dataset):
     
-    def __init__(self, data_dir, ref_dir, new_format=True):
-        super().__init__(data_dir, new_format=new_format)
+    def __init__(self, data_dir, ref_dir, data_format=Format.Unified):
+        super().__init__(data_dir, data_format=data_format)
 
         if ref_dir:
             log.indent()
@@ -146,4 +153,75 @@ class CORD19Deltas(CORD19Dataset):
         if halt:
             raise StopIteration
         else:
-            return record
+            return CORD19Record(record, self)
+
+
+class CORD19Record:
+    def __init__(self, record, dataset):
+        self._record = record
+        self._dataset = dataset
+
+    def __getitem__(self, key):
+        return self._record[key]
+
+    def getAbstractAndFullText(self, abstract_only=False):
+        ### record processing workflow
+        # (1) pull the abstract from the metadata, as a single paragraph
+        abstract = self._record['abstract'].strip()
+
+        if self._dataset._data_format == Format.Unified:
+            # (2) if this record has PMC JSON content, prefer it
+            if len(self._record['pmc_json_files']) > 0:
+                jsonpath = self._record['pmc_json_files']
+            # (3) otherwise, check if it has PDF JSON content
+            elif len(self._record['pdf_json_files']) > 0:
+                jsonpath = self._record['pdf_json_files']
+            # (4) otherwise, mark as no full-text
+            else:
+                jsonpath = None
+
+        elif self._dataset._data_format == Format.Split_PDF_And_PMC:
+            # (2) if this record has PMC JSON content, prefer it
+            if self._record['has_pmc_xml_parse'] == 'True' and len(self._record['full_text_file']) > 0:
+                jsonpath = os.path.join(
+                    self._dataset._data_dir,
+                    self._record['full_text_file'],
+                    'pmc_json',
+                    '%s.xml.json' % self._record['pmcid']
+                )
+            # (3) otherwise, check if it has PDF JSON content
+            elif self._record['has_pdf_parse'] == 'True' and len(self._record['full_text_file']) > 0:
+                jsonpath = os.path.join(
+                    self._dataset._data_dir,
+                    self._record['full_text_file'],
+                    'pdf_json',
+                    '%s.json' % (self._record['sha'].split(';')[0])
+                )
+            # (4) otherwise, mark as no full-text
+            else:
+                jsonpath = None
+
+        elif self._dataset._data_format == Format.Split_PDF_Only:
+            # (2) -- no PMC JSON content in these versions --
+            # (3) check for PDF JSON content
+            if self._record['has_full_text'] == 'True' and len(self._record['full_text_file']) > 0:
+                jsonpath = '%s/%s.json' % (
+                    self._record['full_text_file'],
+                    self._record['sha'].split(';')[0]
+                )
+            # (4) otherwise, mark as no full-text
+            else:
+                jsonpath = None
+
+        # (5) now, go through each JSON file to pull the full text
+        full_text = []
+        if (not abstract_only) and jsonpath:
+            jsonpaths = jsonpath.split(';')
+            for jsonpath in jsonpaths:
+                data = self._dataset.getJSON(jsonpath)
+                if 'body_text' in data:
+                    paragraphs = data['body_text']
+                    for paragraph in paragraphs:
+                        full_text.append(paragraph['text'].strip())
+
+        return (abstract, full_text)
