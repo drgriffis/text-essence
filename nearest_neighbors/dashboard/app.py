@@ -39,7 +39,7 @@ def showChanges(src=None, trg=None, filter_set=None, at_k=None):
         at_k,
         source_confidence_threshold=0.5,
         target_confidence_threshold=0.5,
-        order_by='CWD DESC',
+        order_by='ConfidenceWeightedDelta DESC',
         limit=50
     )
     for row in rows:
@@ -59,7 +59,7 @@ def showChanges(src=None, trg=None, filter_set=None, at_k=None):
         at_k,
         source_confidence_threshold=0.5,
         target_confidence_threshold=0.5,
-        order_by='CWD',
+        order_by='ConfidenceWeightedDelta',
         limit=10
     )
     for row in rows:

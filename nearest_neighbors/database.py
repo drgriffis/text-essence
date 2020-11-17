@@ -272,7 +272,7 @@ class EmbeddingNeighborhoodDatabase:
 
     def selectFromEntityOverlapAnalysis(self, src, trg, filter_set, at_k,
             source_confidence_threshold=None, target_confidence_threshold=None,
-            order_by='CWD', limit=10):
+            order_by='ConfidenceWeightedDelta', limit=10):
 
         base_query = '''
         SELECT
