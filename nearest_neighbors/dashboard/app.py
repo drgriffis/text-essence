@@ -180,20 +180,13 @@ def info(query_key=None):
         else:
             cwds.append(None)
 
-    entity_change_analysis_base64 = packaging.renderImage(
-        visualization.entityChangeAnalysis,
-        args=(corpora, cwds),
-        kwargs={'figsize': (11,3), 'font_size': 14}
-    )
-
     return render_template(
         'info.html',
         query_key=query_key,
         preferred_term=preferred_term,
         all_terms=sorted(term_list),
         corpora=(','.join(corpora)),
-        tables=tables,
-        entity_change_analysis_base64=entity_change_analysis_base64
+        tables=tables
     )
 
 

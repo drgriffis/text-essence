@@ -28,9 +28,6 @@
             </ul>
         </div>
     </div>
-    <div id="change_panel" class="container">
-        {{ macros.showEntityChangeAnalysis(entity_change_analysis_base64) }}
-    </div>
     <div id="tables_panel" class="container">
         <div id="neighbor_settings">
             <form action="{{ url_for('info', query_key=query_key) }}" method="GET">
