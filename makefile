@@ -329,3 +329,7 @@ distribute_JET:
 	head -n 14 config.log >> __distrib__/README; \
 	cd __distrib__; \
 	zip ${OUTPUT}.zip *.txt README; \
+
+run_dashboard:
+	@export FLASK_APP=nearest_neighbors/dashboard/app.py; \
+	${PY} -m flask run
