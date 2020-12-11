@@ -253,6 +253,7 @@ def search(query=None):
 
     return render_template(
         'search.html',
+        query=query,
         rows=table_rows,
         corpora='2020-03-27,2020-04-03'  ## hard-coded value for now
     )

@@ -1,3 +1,21 @@
 {% macro showEntityChangeAnalysis(base64_data) -%}
     <img class="entity_change_analysis" src="data:image/png;base64,{{ base64_data }}" />
 {%- endmacro %}
+
+{% macro searchPanel() -%}
+    <div id="search_panel" class=="container">
+        <form class="navbar-form" role="search" action="{{ url_for('search') }}" method="POST">
+            <div class="input-group">
+                <input type="search" name="query" id="query" placeholder="Search" class="form-control">
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-default">
+                        <img src="/static/images/magnifying-glass.png" />
+                        <span class="glyphicon glyphicon-search">
+                            <span class="sr-only">Search</span>
+                        </span>
+                    </button>
+                </span>
+            </div>
+        </form>
+    </div>
+{%- endmacro %}
