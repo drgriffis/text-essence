@@ -8,6 +8,7 @@ import os
 import configparser
 from nearest_neighbors.database import *
 from nearest_neighbors.dashboard import packaging
+from nearest_neighbors.dashboard import visualization
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -102,6 +103,7 @@ def info(query_key=None):
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
 
+    ## (1) get the nearest neighbors
     tables = []
     TABLES_PER_ROW = 3
     for i in range(len(corpora)):
@@ -137,6 +139,7 @@ def info(query_key=None):
         'IsCorpusTable': False
     })
 
+    ## (2) get the terms for the entity
     all_terms = db.selectFromEntityTerms(
         query_key
     )
@@ -147,13 +150,50 @@ def info(query_key=None):
         else:
             term_list.append(term.term)
 
+    ## (3) get its change history
+    corpora = [
+        '2020-04-24',
+        '2020-05-31',
+        '2020-06-30',
+        '2020-07-31',
+        '2020-08-29',
+        '2020-09-28',
+        '2020-10-31'
+    ]
+    cwds = []
+    for i in range(len(corpora)-1):
+        change_src = corpora[i]
+        change_trg = corpora[i+1]
+        filter_set = '.HC_Union_{0}_{1}'.format(change_src, change_trg)  ## TODO HARD CODED
+        at_k = 5  ## TODO HARD CODED
+
+        rows = db.selectFromEntityOverlapAnalysis(
+            change_src,
+            change_trg,
+            filter_set=filter_set,
+            at_k=at_k,
+            entity_key=query_key
+        )
+        rows = list(rows)
+        if len(rows) == 1:
+            cwds.append(rows[0].CWD)
+        else:
+            cwds.append(None)
+
+    entity_change_analysis_base64 = packaging.renderImage(
+        visualization.entityChangeAnalysis,
+        args=(corpora, cwds),
+        kwargs={'figsize': (11,3), 'font_size': 14}
+    )
+
     return render_template(
         'info.html',
         query_key=query_key,
         preferred_term=preferred_term,
         all_terms=sorted(term_list),
         corpora=(','.join(corpora)),
-        tables=tables
+        tables=tables,
+        entity_change_analysis_base64=entity_change_analysis_base64
     )
 
 

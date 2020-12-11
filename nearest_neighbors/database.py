@@ -272,7 +272,7 @@ class EmbeddingNeighborhoodDatabase:
 
     def selectFromEntityOverlapAnalysis(self, src, trg, filter_set, at_k,
             source_confidence_threshold=None, target_confidence_threshold=None,
-            order_by='ConfidenceWeightedDelta', limit=10):
+            order_by='ConfidenceWeightedDelta', limit=10, entity_key=None):
 
         base_query = '''
         SELECT
@@ -333,8 +333,18 @@ class EmbeddingNeighborhoodDatabase:
         else:
             trg_conf_cond = ''
 
+        if not (entity_key is None):
+            entity_key_cond = 'AND eoa.EntityKey = ?'
+            args.append(entity_key)
+        else:
+            entity_key_cond = ''
+
         query = base_query.format(
-            '{0} {1}'.format(src_conf_cond, trg_conf_cond),
+            '{0} {1} {2}'.format(
+                src_conf_cond,
+                trg_conf_cond,
+                entity_key_cond
+            ),
             order_by,
             limit
         )
