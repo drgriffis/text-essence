@@ -1,0 +1,24 @@
+#search_panel {
+}
+
+#search_panel .input-group {
+    margin-left: 50px;
+    margin-right: 50px;
+}
+
+#search_panel button,
+#search_panel input {
+    padding: 8px 12px;
+    border-radius: 0px;
+    border-width: 0px;
+    color: rgb(119,119,119);
+    box-shadow: none;
+    outline: none;
+}
+#search_panel input {
+    width:90%;
+    max-width:90%;
+}
+#search_panel button[type=submit] img {
+    width:20px;
+}

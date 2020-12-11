@@ -4,6 +4,7 @@
 <html lang="en">
 <head>
     <title>{{ query_key }} Information</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='shared.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='info.css') }}">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
@@ -17,6 +18,7 @@
     <script type="text/javascript" src="{{ url_for('static', filename='info.js') }}"></script>
 </head>
 <body id="info">
+    {{ macros.searchPanel() }}
     <div id="info_panel" class="container">
         <h1>{{ query_key }} {{ preferred_term }}</h1>
         <div id="termListPanel">
