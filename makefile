@@ -53,13 +53,8 @@ extract_corpus:
 	fi; \
 	DISTRIBDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} DistribDirectory); \
 	EXTRACTDIR=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} ExtractedDirectory); \
-	NEWFORMAT=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} NewFormat); \
+	FORMAT=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} Format); \
 	ABSTRACTONLY=$$(${PY} -m cli_configparser.read_setting -c config.ini ${CORPUS} AbstractOnly); \
-	if [ "$${NEWFORMAT}" = "True" ]; then \
-		NEWFORMATFLAG="--new-format"; \
-	else \
-		NEWFORMATFLAG=; \
-	fi; \
 	if [ "$${ABSTRACTONLY}" = "True" ]; then \
 		ABSTRACTONLYFLAG="--abstract-only"; \
 	else \
@@ -83,7 +78,7 @@ extract_corpus:
 	${PY} -m corpus.extract_corpus \
 		-d $${DISTRIBDIR} \
 		-o $${EXTRACTDIR}/corpus.txt \
-		$${NEWFORMATFLAG} \
+		--format $${FORMAT} \
 		$${ABSTRACTONLYFLAG} \
 		$${REFDIRFLAG} \
 		-l $${EXTRACTDIR}/corpus.log

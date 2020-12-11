@@ -1,47 +1,34 @@
 import os
 import csv
 from hedgepig_logger import log
-from corpus.data_processor import CORD19Deltas
+from corpus.data_processor import CORD19Deltas, Format
 
 def extractRecord(record, dataset, stream, abstract_only=False):
     status = {}
 
-    ### record processing workflow
-    # (1) pull the abstract from the metadata, as a single paragraph
-    abstract = record['abstract'].strip()
+    abstract, full_text = record.getAbstractAndFullText(
+        abstract_only=abstract_only
+    )
+
+    # write the abstract as a single paragraph
     if len(abstract) > 0:
-        stream.write('%s\n' % record['abstract'].strip())
+        stream.write('%s\n' % abstract)
         status['abstract'] = 1
     else:
         status['abstract'] = 0
 
-    # (2) if this record has PMC JSON content, prefer it
-    if len(record['pmc_json_files']) > 0:
-        jsonpath = record['pmc_json_files']
-    # (3) otherwise, check if it has PDF JSON content
-    elif len(record['pdf_json_files']) > 0:
-        jsonpath = record['pdf_json_files']
-    # (4) otherwise, mark as no full-text
-    else:
-        jsonpath = None
-
-    # (5) now, go through each JSON file to pull the full text
+    # write full text paragraph by paragraph
     status['full_text'] = 0
-    if (not abstract_only) and jsonpath:
-        jsonpaths = jsonpath.split(';')
-        for jsonpath in jsonpaths:
-            data = dataset.getJSON(jsonpath)
-            if 'body_text' in data:
-                paragraphs = data['body_text']
-                for paragraph in paragraphs:
-                    stream.write('%s\n' % paragraph['text'].strip())
-                    status['full_text'] = 1
+    if (not abstract_only) and len(full_text) > 0:
+        for paragraph in full_text:
+            stream.write('%s\n' % paragraph.strip())
+            status['full_text'] = 1
     
     return status
                 
             
 
-def extractCorpus(datadir, outf, new_format, abstract_only, refdir=None):
+def extractCorpus(datadir, outf, data_format, abstract_only, refdir=None):
     status = {'Abstract only': 0, 'Full text only': 0, 'Both': 0, 'Omitted': 0}
     render_status = lambda status: ' '.join([
         '{0}: {1:,}'.format(k, v)
@@ -54,7 +41,7 @@ def extractCorpus(datadir, outf, new_format, abstract_only, refdir=None):
         info_writer.writeheader()
 
         t = log.startTimer('Loading CORD-19 dataset from %s...' % datadir)
-        with CORD19Deltas(datadir, refdir, new_format=new_format) as dataset:
+        with CORD19Deltas(datadir, refdir, data_format=data_format) as dataset:
             log.stopTimer(t, 'Dataset loaded in {0:.2f}s: includes %s records in total.\n' % ('{0:,}'.format(len(dataset))))
 
             log.track('  >> Processed {0:,} new records (Status -- {1})', writeInterval=1)
@@ -82,9 +69,11 @@ if __name__ == '__main__':
             help='(required) CORD-19 output dump data directory')
         parser.add_option('-o', '--output', dest='output_f',
             help='(required) output file for corpus')
-        parser.add_option('--new-format', dest='new_format',
-            default=False, action='store_true',
-            help='use if data directory is after 5/12/20')
+        parser.add_option('--format', dest='data_format',
+            type='choice', choices=Format.options(),
+            help='format of the data directory (choices: [%s])' % (
+                ','.join(Format.options())
+            ))
         parser.add_option('--abstract-only', dest='abstract_only',
             default=False, action='store_true',
             help='do not extract full text data')
@@ -107,14 +96,14 @@ if __name__ == '__main__':
         ('Input data directory', options.directory),
         ('Reference data directory for deltas', options.ref_directory),
         ('Output corpus file', options.output_f),
-        ('Input data in new format?', options.new_format),
+        ('Data format', options.data_format),
         ('Extracting abstracts only?', options.abstract_only),
     ], 'Extracting CORD-19 corpus')
 
     extractCorpus(
         options.directory, 
         options.output_f, 
-        options.new_format, 
+        Format.parse(options.data_format), 
         options.abstract_only,
         refdir=options.ref_directory,
     )
