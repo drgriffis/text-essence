@@ -555,7 +555,7 @@ class EmbeddingNeighborhoodDatabase:
             yield source
 
 
-    def selectFromEntityTerms(self, key):
+    def selectFromEntityTerms(self, key, preferred=False):
         query = '''
         SELECT
             *
@@ -566,6 +566,12 @@ class EmbeddingNeighborhoodDatabase:
         '''
 
         args = [key]
+
+        if preferred:
+            query = '''
+            {0}
+                AND Preferred=1
+            '''.format(query)
 
         self._cursor.execute(query, args)
         for row in self._cursor:
@@ -606,5 +612,47 @@ class EmbeddingNeighborhoodDatabase:
                 entity_key=entity_key,
                 term=term,
                 preferred=preferred
+            )
+            yield ret_obj
+
+
+    def selectFromAggregatePairwiseSimilarity(self, query_key, target, src=None):
+        query = '''
+        SELECT
+            *
+        FROM
+            AggregatePairwiseSimilarity
+        WHERE
+            EntityKey=?
+            AND NeighborKey=?
+        '''
+
+        args = [
+            query_key,
+            target
+        ]
+
+        if not (src is None):
+            query = '''
+            {0}
+                AND Source=?
+            '''.format(query)
+            args.append(src)
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                source,
+                key,
+                neighbor_key,
+                mean_similarity,
+                std_similarity
+            ) = row
+            ret_obj = AggregatePairwiseSimilarity(
+                source=source,
+                key=key,
+                neighbor_key=neighbor_key,
+                mean_similarity=mean_similarity,
+                std_similarity=std_similarity
             )
             yield ret_obj
