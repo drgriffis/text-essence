@@ -293,8 +293,9 @@ class EmbeddingNeighborhoodDatabase:
 
         rows = [
             (
-                s.source, s.key, s.neighbor_key, s.mean_similarity,
-                s.std_similarity
+                s.source, s.key, s.neighbor_key,
+                float(s.mean_similarity),
+                float(s.std_similarity)
             )
                 for s in sims
         ]
