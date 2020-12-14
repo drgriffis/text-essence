@@ -1,8 +1,46 @@
 '''
-I/O methods for neighbor files and node map files
+I/O methods for embedding sets, neighbor files, and node map files
 '''
 
+import os
+import glob
 import codecs
+import pyemblib
+
+class EmbeddingReplicates:
+    def __init__(self, ID, src_config, lazy=True):
+        self.ID = ID
+
+        # detect number of replicates
+        self._embedfs = glob.glob(
+            src_config['ReplicateTemplate'].format(REPL='*')
+        )
+        self._mode = src_config['EmbeddingFormat']
+        self._embedf_index = 0
+
+        self._lazy = True
+        if not lazy:
+            self._embeddings = list(self)
+        self._lazy = lazy
+
+    def __iter__(self):
+        if self._lazy:
+            self._embedf_index = 0
+            return self
+        else:
+            self._embeddings
+
+    def __next__(self):
+        if self._embedf_index == len(self._embedfs):
+            raise StopIteration
+        else:
+            embedf = self._embedfs[self._embedf_index]
+            embeds = pyemblib.read(embedf, mode=self._mode, errors='replace')
+            self._embedf_index += 1
+            return embeds
+
+    def __len__(self):
+        return len(self._embedfs)
 
 def writeNodeMap(emb, f):
     ordered = tuple([

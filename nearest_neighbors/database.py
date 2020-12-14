@@ -113,6 +113,22 @@ class EmbeddingNeighborhoodDatabase:
         )
         ''')
 
+
+        ## the AggregatePairwiseSimilarity table stores cosine similarity
+        ## values between entity pairs within a given source corpus
+        ## (calculated as the mean similarity over replicates)
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS AggregatePairwiseSimilarity
+        (
+            Source text,
+            EntityKey text,
+            NeighborKey text,
+            MeanSimilarity real,
+            StdDevSimilarity real,
+            UNIQUE(Source, EntityKey, NeighborKey)
+        )
+        ''')
+
         ## flush all changes to DB
         self._connection.commit()
 
@@ -128,6 +144,8 @@ class EmbeddingNeighborhoodDatabase:
             self.insertOrUpdateIntoAggregateNearestNeighbors(objects, *args, **kwargs)
         elif type(objects[0]) is EntityTerm:
             self.insertOrUpdateIntoEntityTerms(objects, *args, **kwargs)
+        elif type(objects[0]) is AggregatePairwiseSimilarity:
+            self.insertOrUpdateIntoAggregatePairwiseSimilarity(objects, *args, **kwargs)
 
     def insertOrUpdateIntoEntityOverlapAnalysis(self, overlaps):
         if (not type(overlaps) is list) and (not type(overlaps) is tuple):
@@ -262,6 +280,29 @@ class EmbeddingNeighborhoodDatabase:
             '''
             REPLACE INTO EntityTerms VALUES (
                 ?, ?, ?
+            )
+            ''',
+            rows
+        )
+
+        self._connection.commit()
+
+    def insertOrUpdateIntoAggregatePairwiseSimilarity(self, sims):
+        if (not type(sims) is list) and (not type(sims) is tuple):
+            sims = [sims]
+
+        rows = [
+            (
+                s.source, s.key, s.neighbor_key, s.mean_similarity,
+                s.std_similarity
+            )
+                for s in sims
+        ]
+
+        self._cursor.executemany(
+            '''
+            REPLACE INTO AggregatePairwiseSimilarity VALUES (
+                ?, ?, ?, ?, ?
             )
             ''',
             rows
