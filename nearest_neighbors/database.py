@@ -113,6 +113,22 @@ class EmbeddingNeighborhoodDatabase:
         )
         ''')
 
+
+        ## the AggregatePairwiseSimilarity table stores cosine similarity
+        ## values between entity pairs within a given source corpus
+        ## (calculated as the mean similarity over replicates)
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS AggregatePairwiseSimilarity
+        (
+            Source text,
+            EntityKey text,
+            NeighborKey text,
+            MeanSimilarity real,
+            StdDevSimilarity real,
+            UNIQUE(Source, EntityKey, NeighborKey)
+        )
+        ''')
+
         ## flush all changes to DB
         self._connection.commit()
 
@@ -128,6 +144,8 @@ class EmbeddingNeighborhoodDatabase:
             self.insertOrUpdateIntoAggregateNearestNeighbors(objects, *args, **kwargs)
         elif type(objects[0]) is EntityTerm:
             self.insertOrUpdateIntoEntityTerms(objects, *args, **kwargs)
+        elif type(objects[0]) is AggregatePairwiseSimilarity:
+            self.insertOrUpdateIntoAggregatePairwiseSimilarity(objects, *args, **kwargs)
 
     def insertOrUpdateIntoEntityOverlapAnalysis(self, overlaps):
         if (not type(overlaps) is list) and (not type(overlaps) is tuple):
@@ -262,6 +280,30 @@ class EmbeddingNeighborhoodDatabase:
             '''
             REPLACE INTO EntityTerms VALUES (
                 ?, ?, ?
+            )
+            ''',
+            rows
+        )
+
+        self._connection.commit()
+
+    def insertOrUpdateIntoAggregatePairwiseSimilarity(self, sims):
+        if (not type(sims) is list) and (not type(sims) is tuple):
+            sims = [sims]
+
+        rows = [
+            (
+                s.source, s.key, s.neighbor_key,
+                float(s.mean_similarity),
+                float(s.std_similarity)
+            )
+                for s in sims
+        ]
+
+        self._cursor.executemany(
+            '''
+            REPLACE INTO AggregatePairwiseSimilarity VALUES (
+                ?, ?, ?, ?, ?
             )
             ''',
             rows
@@ -514,7 +556,7 @@ class EmbeddingNeighborhoodDatabase:
             yield source
 
 
-    def selectFromEntityTerms(self, key):
+    def selectFromEntityTerms(self, key, preferred=False):
         query = '''
         SELECT
             *
@@ -525,6 +567,12 @@ class EmbeddingNeighborhoodDatabase:
         '''
 
         args = [key]
+
+        if preferred:
+            query = '''
+            {0}
+                AND Preferred=1
+            '''.format(query)
 
         self._cursor.execute(query, args)
         for row in self._cursor:
@@ -565,5 +613,47 @@ class EmbeddingNeighborhoodDatabase:
                 entity_key=entity_key,
                 term=term,
                 preferred=preferred
+            )
+            yield ret_obj
+
+
+    def selectFromAggregatePairwiseSimilarity(self, query_key, target, src=None):
+        query = '''
+        SELECT
+            *
+        FROM
+            AggregatePairwiseSimilarity
+        WHERE
+            EntityKey=?
+            AND NeighborKey=?
+        '''
+
+        args = [
+            query_key,
+            target
+        ]
+
+        if not (src is None):
+            query = '''
+            {0}
+                AND Source=?
+            '''.format(query)
+            args.append(src)
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                source,
+                key,
+                neighbor_key,
+                mean_similarity,
+                std_similarity
+            ) = row
+            ret_obj = AggregatePairwiseSimilarity(
+                source=source,
+                key=key,
+                neighbor_key=neighbor_key,
+                mean_similarity=mean_similarity,
+                std_similarity=std_similarity
             )
             yield ret_obj

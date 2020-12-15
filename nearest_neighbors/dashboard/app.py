@@ -271,3 +271,54 @@ def getAggregateNearestNeighborsMembership():
         })
 
     return jsonify(table_rows)
+
+
+@app.route('/pairwise', methods=['POST'])
+@app.route('/pairwise/<query>/<target>', methods=['GET', 'POST'])
+def pairwise(query=None, target=None):
+    if request.method == 'GET':
+        getter = request.args.get
+    else:
+        getter = request.form.get
+
+    if query is None:
+        query = getter('query', None)
+    if target is None:
+        target = getter('target', None)
+
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+
+    rows = db.selectFromAggregatePairwiseSimilarity(query, target)
+    
+    rows = sorted(rows, key=lambda item: item.source)
+    corpora, means, stds = [], [], []
+    for row in rows:
+        corpora.append(row.source)
+        means.append(row.mean_similarity)
+        stds.append(row.std_similarity)
+
+    query_preferred_term = list(
+        db.selectFromEntityTerms(
+            query, preferred=1
+        )
+    )[0].term
+    target_preferred_term = list(
+        db.selectFromEntityTerms(
+            target, preferred=1
+        )
+    )[0].term
+
+    pairwise_similarity_analysis_base64 = packaging.renderImage(
+        visualization.pairwiseSimilarityAnalysis,
+        args=(corpora, means, stds),
+        kwargs={'figsize': (13,3), 'font_size': 14}
+    )
+
+    return render_template(
+        'pairwise.html',
+        query=query,
+        query_preferred_term=query_preferred_term,
+        target=target,
+        target_preferred_term=target_preferred_term,
+        pairwise_similarity_analysis_base64=pairwise_similarity_analysis_base64
+    )
