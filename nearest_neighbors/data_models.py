@@ -28,7 +28,7 @@ class InternalConfidence:
     key = None
     confidence = None
 
-    def __init__(self, source, filter_set, at_k, key, confidence):
+    def __init__(self, source, at_k, key, confidence):
         self.source = source
         self.at_k = at_k
         self.key = key

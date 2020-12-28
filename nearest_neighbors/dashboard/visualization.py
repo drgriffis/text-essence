@@ -102,3 +102,57 @@ def pairwiseSimilarityAnalysis(corpora, means, stds, outf=None, figsize=(5,5), f
     )
 
     plt.close()
+
+
+def internalConfidenceAnalysis(corpora, confidences, threshold, outf=None, figsize=(5,5), font_size=18):
+    font = {
+        'family' : 'sans-serif',
+        'size'   : font_size
+    }
+    matplotlib.rc('font', **font)
+
+    (fig, ax) = plt.subplots(figsize=figsize)
+
+    x_ticks = np.arange(len(corpora)) + 1
+    x_data, y_data = [], []
+    for i in range(len(corpora)):
+        if not (confidences[i] is None):
+            x_data.append(i+1)
+            y_data.append(confidences[i])
+
+    # plot the threshold
+    plt.plot(
+        np.arange(len(corpora) + 1),
+        [threshold for _ in range(len(corpora) + 1)],
+        '--',
+        color='#dddddd'
+    )
+    # plot the line
+    plt.plot(
+        x_data,
+        y_data,
+        'r--'
+    )
+    # plot the markers
+    plt.plot(
+        x_data,
+        y_data,
+        'b.'
+    )
+
+    plt.xlabel('Corpus versions')
+    plt.ylabel('Confidence')
+
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(corpora)
+
+    plt.ylim((0, 1))
+
+    plt.savefig(
+        outf,
+        format='png',
+        bbox_inches='tight',
+        extra_artists=[]
+    )
+
+    plt.close()

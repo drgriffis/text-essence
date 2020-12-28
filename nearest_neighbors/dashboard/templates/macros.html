@@ -1,8 +1,13 @@
 {% macro showEntityChangeAnalysis(base64_data) -%}
     <img class="entity_change_analysis" src="data:image/png;base64,{{ base64_data }}" />
 {%- endmacro %}
+
 {% macro showPairwiseSimilarityAnalysis(base64_data) -%}
     <img class="pairwise_simliarity_analysis" src="data:image/png;base64,{{ base64_data }}" />
+{%- endmacro %}
+
+{% macro showInternalConfidenceAnalysis(base64_data) -%}
+    <img class="internal_confidence_analysis" src="data:image/png;base64,{{ base64_data }}" />
 {%- endmacro %}
 
 {% macro searchPanel() -%}

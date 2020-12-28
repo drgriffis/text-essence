@@ -9,12 +9,6 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 
-    <script type="text/javascript">
-        $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
-        var QUERY_KEY = "{{ query_key }}";
-        var CURRENT_CORPORA = "{{ corpora }}";
-    </script>
-
     <script type="text/javascript" src="{{ url_for('static', filename='info.js') }}"></script>
 </head>
 <body id="info">
@@ -29,29 +23,22 @@
                 {% endfor %}
             </ul>
         </div>
+        <div id="confidencePanel">
+            {{ macros.showInternalConfidenceAnalysis(confidence_analysis_base64) }}
+        </div>
     </div>
     <div id="change_panel" class="container">
         {{ macros.showEntityChangeAnalysis(entity_change_analysis_base64) }}
     </div>
     <div id="tables_panel" class="container">
-        <div id="neighbor_settings">
-            <form action="{{ url_for('info', query_key=query_key) }}" method="GET">
-                <input type="hidden" name="corpora" value="{{ corpora }}" />
-
-                <input name="neighbor_type" type="radio" onchange="form.submit();" id="nt_entity" value="ENTITY" />
-                <label for="nt_entity">Entity</label>
-                <input name="neighbor_type" type="radio" onchange="form.submit();" id="nt_context" value="CONTEXT" />
-                <label for="nt_entity">Context</label>
-            </form>
-        </div>
         <div class="container">
             {% for table in tables %}
             {% if table.IsGridRowStart %}
             <div class="row">
             {% endif %}
                 <div class="col-sm-4 nn_table">
-                    {% if table.IsCorpusTable %}
                     <h4>{{ table.Corpus }}</h4>
+                    <h5>Confidence: {{ table.Confidence }}</h5>
                     <table class="table table-striped">
                         <thead class="thead-dark">
                             <tr>
@@ -72,24 +59,6 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                    {% else %}
-                    <div id="addTableButtonContainer" class="container">
-                        <div id="sourceSelectionPanel">
-                            <form action="{{ url_for('info', query_key=query_key) }}" method="POST">
-                                <table id="sourceSelectionTable">
-                                </table>
-                                <input type="submit" value="Update"></input>
-                            </form>
-                        </div>
-                        <div id="addTableButton">
-                            <svg class="bi bi-plus-circle" width="3em" height="3em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                <path fill-rule="evenodd" d="M8 3.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5H4a.5.5 0 0 1 0-1h3.5V4a.5.5 0 0 1 .5-.5z"/>
-                                <path fill-rule="evenodd" d="M7.5 8a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1H8.5V12a.5.5 0 0 1-1 0V8z"/>
-                                <path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
             {% if table.IsGridRowEnd %}
             </div>
