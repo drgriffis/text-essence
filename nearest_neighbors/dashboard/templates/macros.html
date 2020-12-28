@@ -2,6 +2,10 @@
     <img class="pairwise_simliarity_analysis" src="data:image/png;base64,{{ base64_data }}" />
 {%- endmacro %}
 
+{% macro showInternalConfidenceAnalysis(base64_data) -%}
+    <img class="internal_confidence_analysis" src="data:image/png;base64,{{ base64_data }}" />
+{%- endmacro %}
+
 {% macro searchPanel() -%}
     <div id="search_panel" class=="container">
         <form class="navbar-form" role="search" action="{{ url_for('search') }}" method="POST">

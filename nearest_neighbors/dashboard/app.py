@@ -97,13 +97,26 @@ def info(query_key=None):
     if query_key is None:
         query_key = getter('query_key', None)
     
-    corpora = lgetter('corpora', '')
     neighbor_type = getter('neighbor_type', 'ENTITY')
     neighbor_type = EmbeddingType.parse(neighbor_type)
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+    corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
 
-    ## (1) get the nearest neighbors
+    ## (1) get its confidence history
+    ## TODO: change to single query
+    confidences = {}
+    for corpus in corpora:
+        rows = db.selectFromInternalConfidence(
+            src=corpus,
+            at_k=5,
+            key=query_key
+        )
+        for row in rows:
+            confidences[corpus] = row.confidence
+
+    ## (2) get the nearest neighbors
+    ## TODO: change to single query
     tables = []
     TABLES_PER_ROW = 3
     for i in range(len(corpora)):
@@ -123,23 +136,22 @@ def info(query_key=None):
             table_rows.append({
                 'NeighborKey': row.neighbor_key,
                 'NeighborString': row.neighbor_string,
-                'Distance': row.mean_distance
+                'Distance': packaging.prettify(row.mean_distance, decimals=3)
             })
+
+        confidence = confidences.get(corpus, None)
+        if confidence is None: confidence = '--'
+        else: confidence = packaging.prettify(confidence)
 
         tables.append({
             'Corpus': corpus,
+            'Confidence': confidence,
             'Rows': table_rows,
             'IsGridRowStart': (i % TABLES_PER_ROW) == 0,
             'IsGridRowEnd': (i % TABLES_PER_ROW) == (TABLES_PER_ROW - 1),
-            'IsCorpusTable': True
         })
 
-    # add a placeholder for the "add a table" button
-    tables.append({
-        'IsCorpusTable': False
-    })
-
-    ## (2) get the terms for the entity
+    ## (3) get the terms for the entity
     all_terms = db.selectFromEntityTerms(
         query_key
     )
@@ -150,16 +162,7 @@ def info(query_key=None):
         else:
             term_list.append(term.term)
 
-    ## (3) get its change history
-    corpora = [
-        '2020-04-24',
-        '2020-05-31',
-        '2020-06-30',
-        '2020-07-31',
-        '2020-08-29',
-        '2020-09-28',
-        '2020-10-31'
-    ]
+    ## (4) get its change history
     cwds = []
     for i in range(len(corpora)-1):
         change_src = corpora[i]
@@ -180,13 +183,20 @@ def info(query_key=None):
         else:
             cwds.append(None)
 
+    hc_threshold = float(config['PairedNeighborhoodAnalysis']['HighConfidenceThreshold'])
+    confidence_analysis_base64 = packaging.renderImage(
+        visualization.internalConfidenceAnalysis,
+        args=(corpora, [confidences.get(c, None) for c in corpora], hc_threshold),
+        kwargs={'figsize': (6,2), 'font_size': 14}
+    )
+
     return render_template(
         'info.html',
         query_key=query_key,
         preferred_term=preferred_term,
         all_terms=sorted(term_list),
-        corpora=(','.join(corpora)),
-        tables=tables
+        tables=tables,
+        confidence_analysis_base64=confidence_analysis_base64
     )
 
 
