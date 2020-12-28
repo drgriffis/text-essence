@@ -30,41 +30,6 @@
     <div id="change_panel" class="container">
         {{ macros.showEntityChangeAnalysis(entity_change_analysis_base64) }}
     </div>
-    <div id="tables_panel" class="container">
-        <div class="container">
-            {% for table in tables %}
-            {% if table.IsGridRowStart %}
-            <div class="row">
-            {% endif %}
-                <div class="col-sm-4 nn_table">
-                    <h4>{{ table.Corpus }}</h4>
-                    <h5>Confidence: {{ table.Confidence }}</h5>
-                    <table class="table table-striped">
-                        <thead class="thead-dark">
-                            <tr>
-                                <th>Neighbor</th>
-                                <th>Distance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in table.Rows %}
-                            <tr>
-                                <td>
-                                    <a href="/info/{{ row.NeighborKey }}">
-                                        {{ row.NeighborKey }} <i>{{ row.NeighborString }}</i>
-                                    </a>
-                                </td>
-                                <td>{{ row.Distance }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% if table.IsGridRowEnd %}
-            </div>
-            {% endif %}
-            {% endfor %}
-        </div>
-    </div>
+    {{ macros.tablesPanel(tables, false) }}
 </body>
 </html>

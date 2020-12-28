@@ -12,10 +12,28 @@
     {{ macros.searchPanel() }}
     <div id="info_panel" class="container">
         <h1>Pairwise similarity</h1>
-        <h2><a href="{{ url_for('info', query_key=query) }}">{{ query }} {{ query_preferred_term }}</a></h2>
-        <h2><a href="{{ url_for('info', query_key=target) }}">{{ target }} {{ target_preferred_term }}</a></h2>
+        <div class="term_block">
+            <h2><a href="{{ url_for('info', query_key=query) }}">{{ query }} {{ query_preferred_term }}</a></h2>
+            <ul>
+                {% for term in query_terms %}
+                <li>{{ term }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="term_block">
+            <h2><a href="{{ url_for('info', query_key=target) }}">{{ target }} {{ target_preferred_term }}</a></h2>
+            <ul>
+                {% for term in target_terms %}
+                <li>{{ term }}</li>
+                {% endfor %}
+            </ul>
+        </div>
     </div>
     <div id="change_panel" class="container">
         {{ macros.showPairwiseSimilarityAnalysis(pairwise_similarity_analysis_base64) }}
+    </div>
+    <div id="tables_panel" class="container">
+        {{ macros.tablesPanel(query_tables, true) }}
+        {{ macros.tablesPanel(target_tables, true) }}
     </div>
 </body>
