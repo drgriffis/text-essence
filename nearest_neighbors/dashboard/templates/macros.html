@@ -30,14 +30,14 @@
 
 {% macro tablesPanel(tables, as_single_row) -%}
     {% if as_single_row %}
-    <div class="tables_panel container" class="container">
+    <div class="tables_panel single_row">
     {% else %}
-    <div class="tables_panel single_row container" class="container">
-    {% endif %}
+    <div class="tables_panel container">
         <div class="container">
+    {% endif %}
             {% for table in tables %}
             {% if table.IsGridRowStart %}
-            <div class="row">
+            {% if as_single_row %}{% else %}<div class="row">{% endif %}
             {% endif %}
                 <div class="col-sm-4 nn_table">
                     <h4>{{ table.Corpus }}</h4>
@@ -53,9 +53,11 @@
                             {% for row in table.Rows %}
                             <tr>
                                 <td>
+                                    <span class="table_row_label">
                                     <a href="/info/{{ row.NeighborKey }}">
                                         {{ row.NeighborKey }} <i>{{ row.NeighborString }}</i>
                                     </a>
+                                    </span>
                                 </td>
                                 <td>{{ row.Distance }}</td>
                             </tr>
@@ -64,9 +66,12 @@
                     </table>
                 </div>
             {% if table.IsGridRowEnd %}
-            </div>
+            {% if as_single_row %}{% else %}</div>{% endif %}
             {% endif %}
             {% endfor %}
+        {% if as_single_row %}
+        {% else %}
         </div>
+        {% endif %}
     </div>
 {%- endmacro %}

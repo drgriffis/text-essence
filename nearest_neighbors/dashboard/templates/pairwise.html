@@ -33,7 +33,9 @@
         {{ macros.showPairwiseSimilarityAnalysis(pairwise_similarity_analysis_base64) }}
     </div>
     <div id="tables_panel" class="container">
+        <div class="row_label">{{ query }} {{ query_preferred_term }}</div>
         {{ macros.tablesPanel(query_tables, true) }}
+        <div class="row_label">{{ target }} {{ target_preferred_term }}</div>
         {{ macros.tablesPanel(target_tables, true) }}
     </div>
 </body>
