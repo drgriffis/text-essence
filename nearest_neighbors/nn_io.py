@@ -55,6 +55,13 @@ def writeNodeMap(emb, f):
                 node_id, v
             ))
             node_id += 1
+
+def writePreIndexedNodeMap(node_map, f):
+    with codecs.open(f, 'w', 'utf-8') as stream:
+        for (k,v) in node_map.items():
+            stream.write('%d\t%s\n' % (
+                k, v
+            ))
     
 def readNodeMap(f, as_ordered_list=False):
     node_map = {}
