@@ -16,3 +16,22 @@
     text-align: center;
     width: 100%;
 }
+
+#termListPanel {
+    width: 30%;
+    float: left;
+}
+
+#confidencePanel {
+    width: 70%;
+    float: left;
+    text-align: center;
+}
+
+#change_panel {
+    clear: both;
+    display:none;
+}
+#tables_panel {
+    clear: both;
+}

@@ -23,3 +23,51 @@
         </form>
     </div>
 {%- endmacro %}
+
+{% macro tablesPanel(tables, as_single_row) -%}
+    {% if as_single_row %}
+    <div class="tables_panel single_row">
+    {% else %}
+    <div class="tables_panel container">
+        <div class="container">
+    {% endif %}
+            {% for table in tables %}
+            {% if table.IsGridRowStart %}
+            {% if as_single_row %}{% else %}<div class="row">{% endif %}
+            {% endif %}
+                <div class="col-sm-4 nn_table">
+                    <h4>{{ table.Corpus }}</h4>
+                    <h5>Confidence: {{ table.Confidence }}</h5>
+                    <table class="table table-striped">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Neighbor</th>
+                                <th>Distance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in table.Rows %}
+                            <tr>
+                                <td>
+                                    <span class="table_row_label">
+                                    <a href="/info/{{ row.NeighborKey }}">
+                                        {{ row.NeighborKey }} <i>{{ row.NeighborString }}</i>
+                                    </a>
+                                    </span>
+                                </td>
+                                <td>{{ row.Distance }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% if table.IsGridRowEnd %}
+            {% if as_single_row %}{% else %}</div>{% endif %}
+            {% endif %}
+            {% endfor %}
+        {% if as_single_row %}
+        {% else %}
+        </div>
+        {% endif %}
+    </div>
+{%- endmacro %}

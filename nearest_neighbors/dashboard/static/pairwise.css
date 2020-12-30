@@ -1,0 +1,44 @@
+#info_panel .term_block {
+    width: 50%;
+    float: left;
+}
+
+#change_panel {
+    clear: both;
+}
+
+#tables_panel {
+    clear: both;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+#tables_panel > .single_row {
+}
+
+#tables_panel > .single_row > .col-sm-4 {
+    display: inline-block;
+    float: none;
+}
+
+.table_row_label {
+    max-width: 80px;
+}
+
+#tables_panel .table {
+    white-space: normal;
+}
+
+#tables_panel .row_label {
+    left: 0;
+    position: sticky;
+    width: 100%;
+    text-align: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 1.6em;
+    font-weight: bold;
+    background-color: #eeeeee;
+}

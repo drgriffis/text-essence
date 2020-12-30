@@ -104,63 +104,28 @@ def info(query_key=None):
     corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
 
     ## (1) get its confidence history
-    ## TODO: change to single query
-    confidences = {}
-    for corpus in corpora:
-        rows = db.selectFromInternalConfidence(
-            src=corpus,
-            at_k=5,
-            key=query_key
-        )
-        for row in rows:
-            confidences[corpus] = row.confidence
-
-    ## (2) get the nearest neighbors
-    ## TODO: change to single query
-    tables = []
-    TABLES_PER_ROW = 3
-    for i in range(len(corpora)):
-        corpus = corpora[i]
-        filter_set='.HC_{0}'.format(corpus)
-        rows = db.selectFromAggregateNearestNeighbors(
-            corpus,
-            corpus,
-            filter_set,
-            query_key,
-            neighbor_type=neighbor_type,
-            limit=10
-        )
-
-        table_rows = []
-        for row in rows:
-            table_rows.append({
-                'NeighborKey': row.neighbor_key,
-                'NeighborString': row.neighbor_string,
-                'Distance': packaging.prettify(row.mean_distance, decimals=3)
-            })
-
-        confidence = confidences.get(corpus, None)
-        if confidence is None: confidence = '--'
-        else: confidence = packaging.prettify(confidence)
-
-        tables.append({
-            'Corpus': corpus,
-            'Confidence': confidence,
-            'Rows': table_rows,
-            'IsGridRowStart': (i % TABLES_PER_ROW) == 0,
-            'IsGridRowEnd': (i % TABLES_PER_ROW) == (TABLES_PER_ROW - 1),
-        })
-
-    ## (3) get the terms for the entity
-    all_terms = db.selectFromEntityTerms(
+    confidences = getConfidences(
+        db,
+        corpora,
         query_key
     )
-    term_list, preferred_term = [], ''
-    for term in all_terms:
-        if term.preferred == 1:
-            preferred_term = term.term
-        else:
-            term_list.append(term.term)
+
+    ## (2) get the nearest neighbors
+    tables = getNeighborTables(
+        db,
+        corpora,
+        query_key,
+        neighbor_type,
+        confidences,
+        limit=10,
+        as_single_row=False
+    )
+
+    ## (3) get the terms for the entity
+    term_list, preferred_term = getTerms(
+        db,
+        query_key
+    )
 
     ## (4) get its change history
     cwds = []
@@ -298,8 +263,8 @@ def pairwise(query=None, target=None):
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
 
+    ## (1) get pairwise similarity data
     rows = db.selectFromAggregatePairwiseSimilarity(query, target)
-    
     rows = sorted(rows, key=lambda item: item.source)
     corpora, means, stds = [], [], []
     for row in rows:
@@ -307,17 +272,49 @@ def pairwise(query=None, target=None):
         means.append(row.mean_similarity)
         stds.append(row.std_similarity)
 
-    query_preferred_term = list(
-        db.selectFromEntityTerms(
-            query, preferred=1
-        )
-    )[0].term
-    target_preferred_term = list(
-        db.selectFromEntityTerms(
-            target, preferred=1
-        )
-    )[0].term
+    ## (2) get terms for each entity
+    query_term_list, query_preferred_term = getTerms(
+        db,
+        query
+    )
+    target_term_list, target_preferred_term = getTerms(
+        db,
+        target
+    )
 
+    ## (3) get neighbors for each entity
+    corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
+    neighbor_type = EmbeddingType.parse('ENTITY')
+    query_confidences = getConfidences(
+        db,
+        corpora,
+        query
+    )
+    target_confidences = getConfidences(
+        db,
+        corpora,
+        target
+    )
+    query_tables = getNeighborTables(
+        db,
+        corpora,
+        query,
+        neighbor_type,
+        query_confidences,
+        limit=10,
+        as_single_row=True
+    )
+    target_tables = getNeighborTables(
+        db,
+        corpora,
+        target,
+        neighbor_type,
+        target_confidences,
+        limit=10,
+        as_single_row=True
+    )
+
+    ## (4) draw the pairwise similarity graph
     pairwise_similarity_analysis_base64 = packaging.renderImage(
         visualization.pairwiseSimilarityAnalysis,
         args=(corpora, means, stds),
@@ -328,7 +325,77 @@ def pairwise(query=None, target=None):
         'pairwise.html',
         query=query,
         query_preferred_term=query_preferred_term,
+        query_terms=sorted(query_term_list),
+        query_tables=query_tables,
         target=target,
         target_preferred_term=target_preferred_term,
+        target_terms=sorted(target_term_list),
+        target_tables=target_tables,
         pairwise_similarity_analysis_base64=pairwise_similarity_analysis_base64
     )
+
+
+
+
+## TODO: change to single query
+def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
+        limit=10, as_single_row=False):
+    tables = []
+    TABLES_PER_ROW = 3 if not as_single_row else len(corpora)
+    for i in range(len(corpora)):
+        corpus = corpora[i]
+        filter_set='.HC_{0}'.format(corpus)
+        rows = db.selectFromAggregateNearestNeighbors(
+            corpus,
+            corpus,
+            filter_set,
+            query_key,
+            neighbor_type=neighbor_type,
+            limit=10
+        )
+
+        table_rows = []
+        for row in rows:
+            table_rows.append({
+                'NeighborKey': row.neighbor_key,
+                'NeighborString': row.neighbor_string,
+                'Distance': packaging.prettify(row.mean_distance, decimals=3)
+            })
+
+        confidence = confidences.get(corpus, None)
+        if confidence is None: confidence = '--'
+        else: confidence = packaging.prettify(confidence)
+
+        tables.append({
+            'Corpus': corpus,
+            'Confidence': confidence,
+            'Rows': table_rows,
+            'IsGridRowStart': (i % TABLES_PER_ROW) == 0,
+            'IsGridRowEnd': (i % TABLES_PER_ROW) == (TABLES_PER_ROW - 1),
+        })
+    return tables
+
+## TODO: change to single query
+def getConfidences(db, corpora, query_key):
+    confidences = {}
+    for corpus in corpora:
+        rows = db.selectFromInternalConfidence(
+            src=corpus,
+            at_k=5,
+            key=query_key
+        )
+        for row in rows:
+            confidences[corpus] = row.confidence
+    return confidences
+
+def getTerms(db, query_key):
+    all_terms = db.selectFromEntityTerms(
+        query_key
+    )
+    term_list, preferred_term = [], ''
+    for term in all_terms:
+        if term.preferred == 1:
+            preferred_term = term.term
+        else:
+            term_list.append(term.term)
+    return term_list, preferred_term
