@@ -158,7 +158,7 @@ def readSet(f, to_lower=False):
 
 def loadPairedNeighbors(src, i, trg, config, k, aggregate=False,
         with_distances=True, different_types=False, spec='',
-        filter_spec=''):
+        filter_spec='', query_spec='', vocab_spec=''):
     if not aggregate:
         neighbor_file = config['NeighborFilePattern'].format(
             SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec, FILSPEC=filter_spec 
@@ -172,10 +172,12 @@ def loadPairedNeighbors(src, i, trg, config, k, aggregate=False,
             )
     else:
         neighbor_file = config['AggregateNeighborFilePattern'].format(
-            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec
+            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec,
+            QUERYSPEC=query_spec, VOCABSPEC=vocab_spec
         )
         neighbor_vocab = config['AggregateNeighborVocabFilePattern'].format(
-            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec
+            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec,
+            QUERYSPEC=query_spec, VOCABSPEC=vocab_spec
         )
         if different_types:
             query_vocab = config['AggregateQueryVocabFilePattern'].format(
