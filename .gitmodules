@@ -1,0 +1,3 @@
+[submodule "nearest_neighbors/dashboard/diachronic-concept-viewer"]
+	path = nearest_neighbors/dashboard/diachronic-concept-viewer
+	url = git@github.com:cmudig/diachronic-concept-viewer.git
