@@ -3,22 +3,31 @@
     float: left;
 }
 
-#change_panel {
+.similarity_panel {
     clear: both;
+}
+.similarity_panel > h4 {
+    text-align: center;
 }
 
 #tables_panel {
     clear: both;
-    overflow-x: auto;
     white-space: nowrap;
 }
 
-#tables_panel > .single_row {
+#tables_panel > .paired_labels {
+    position: sticky;
+    top: 0px;
+    z-index: 100;
+    margin-top: 20px;
+    margin-bottom: 10px;
 }
-
-#tables_panel > .single_row > .col-sm-4 {
-    display: inline-block;
-    float: none;
+#tables_panel > .paired_labels > .clearer {
+    clear:both;
+}
+#tables_panel > .tables_panel {
+    overflow-y: auto;
+    clear: both;
 }
 
 .table_row_label {
@@ -30,15 +39,13 @@
 }
 
 #tables_panel .row_label {
-    left: 0;
-    position: sticky;
-    width: 100%;
+    width: 50%;
+    float: left;
     text-align: center;
     padding-top: 10px;
     padding-bottom: 10px;
-    margin-top: 20px;
-    margin-bottom: 10px;
     font-size: 1.6em;
     font-weight: bold;
     background-color: #eeeeee;
+    border-bottom: 1px solid;
 }

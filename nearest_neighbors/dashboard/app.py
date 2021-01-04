@@ -120,7 +120,6 @@ def info(query_key=None):
         neighbor_type,
         confidences,
         limit=num_neighbors,
-        as_single_row=False,
         high_confidence_threshold=hc_threshold
     )
 
@@ -312,7 +311,6 @@ def pairwise(query=None, target=None):
         neighbor_type,
         query_confidences,
         limit=num_neighbors,
-        as_single_row=True
     )
     target_tables = getNeighborTables(
         db,
@@ -321,10 +319,21 @@ def pairwise(query=None, target=None):
         neighbor_type,
         target_confidences,
         limit=num_neighbors,
-        as_single_row=True
     )
 
-    ## (4) draw the pairwise similarity graph
+    ## (4) reconfigure table layout to have paired columnar browsing
+    paired_tables = []
+    for i in range(len(query_tables)):
+        query_tables[i]['IsGridRowStart'] = True
+        query_tables[i]['IsGridRowEnd'] = False
+
+        target_tables[i]['IsGridRowStart'] = False
+        target_tables[i]['IsGridRowEnd'] = True
+
+        paired_tables.append(query_tables[i])
+        paired_tables.append(target_tables[i])
+
+    ## (5) draw the pairwise similarity graph
     pairwise_similarity_analysis_base64 = packaging.renderImage(
         visualization.pairwiseSimilarityAnalysis,
         args=(corpora, means, stds),
@@ -336,11 +345,12 @@ def pairwise(query=None, target=None):
         query=query,
         query_preferred_term=query_preferred_term,
         query_terms=sorted(query_term_list),
-        query_tables=query_tables,
+        #query_tables=query_tables,
         target=target,
         target_preferred_term=target_preferred_term,
         target_terms=sorted(target_term_list),
-        target_tables=target_tables,
+        #target_tables=target_tables,
+        paired_tables=paired_tables,
         pairwise_similarity_analysis_base64=pairwise_similarity_analysis_base64
     )
 
@@ -349,9 +359,9 @@ def pairwise(query=None, target=None):
 
 ## TODO: change to single query
 def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
-        limit=10, as_single_row=False, high_confidence_threshold=0.5):
+        limit=10, high_confidence_threshold=0.5):
     tables = []
-    TABLES_PER_ROW = 3 if not as_single_row else len(corpora)
+    TABLES_PER_ROW = 3
     for i in range(len(corpora)):
         corpus = corpora[i]
         filter_set='.HC_{0}'.format(corpus)
