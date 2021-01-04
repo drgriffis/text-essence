@@ -3,7 +3,10 @@
 {%- endmacro %}
 
 {% macro showPairwiseSimilarityAnalysis(base64_data) -%}
+<div class="container similarity_panel">
+    <h4>Similarity over time</h4>
     <img class="pairwise_simliarity_analysis" src="data:image/png;base64,{{ base64_data }}" />
+</div>
 {%- endmacro %}
 
 {% macro showInternalConfidenceAnalysis(base64_data) -%}
@@ -42,13 +45,30 @@
                 <div class="col-sm-4 nn_table">
                     <h4>{{ table.Corpus }}</h4>
                     <h5>Confidence: {{ table.Confidence }}</h5>
-                    <table class="table table-striped">
-                        <thead class="thead-dark">
+                    <table class="table
+                    {% if table.Class == 'low_confidence' %}
+                        table-warning
+                        table-hover
+                    {% elif table.Class == 'high_confidence' %}
+                        table-striped
+                        table-hover
+                    {% else %}
+                    {% endif %}
+                    ">
+                        <thead class="
+                        {% if table.Class == 'high_confidence' %}
+                            thead-dark
+                        {% endif %}">
                             <tr>
                                 <th>Neighbor</th>
                                 <th>Distance</th>
                             </tr>
                         </thead>
+                        {% if table.Class == 'no_data' %}
+                        <tbody>
+                            <tr><td class="no_data_cell" colspan="2" rowspan="{{ table.NumRows }}">No data</td></tr>
+                        </tbody>
+                        {% else %}
                         <tbody>
                             {% for row in table.Rows %}
                             <tr>
@@ -63,6 +83,7 @@
                             </tr>
                             {% endfor %}
                         </tbody>
+                        {% endif %}
                     </table>
                 </div>
             {% if table.IsGridRowEnd %}

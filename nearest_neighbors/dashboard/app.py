@@ -102,6 +102,8 @@ def info(query_key=None):
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
     corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
+    hc_threshold = float(config['PairedNeighborhoodAnalysis']['HighConfidenceThreshold'])
+    num_neighbors = int(config['PairedNeighborhoodAnalysis']['NumNeighborsToShow'])
 
     ## (1) get its confidence history
     confidences = getConfidences(
@@ -117,8 +119,9 @@ def info(query_key=None):
         query_key,
         neighbor_type,
         confidences,
-        limit=10,
-        as_single_row=False
+        limit=num_neighbors,
+        as_single_row=False,
+        high_confidence_threshold=hc_threshold
     )
 
     ## (3) get the terms for the entity
@@ -154,7 +157,6 @@ def info(query_key=None):
         kwargs={'figsize': (11,3), 'font_size': 14}
     )
 
-    hc_threshold = float(config['PairedNeighborhoodAnalysis']['HighConfidenceThreshold'])
     confidence_analysis_base64 = packaging.renderImage(
         visualization.internalConfidenceAnalysis,
         args=(corpora, [confidences.get(c, None) for c in corpora], hc_threshold),
@@ -269,6 +271,7 @@ def pairwise(query=None, target=None):
         target = getter('target', None)
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+    num_neighbors = int(config['PairedNeighborhoodAnalysis']['NumNeighborsToShow'])
 
     ## (1) get pairwise similarity data
     rows = db.selectFromAggregatePairwiseSimilarity(query, target)
@@ -308,7 +311,7 @@ def pairwise(query=None, target=None):
         query,
         neighbor_type,
         query_confidences,
-        limit=10,
+        limit=num_neighbors,
         as_single_row=True
     )
     target_tables = getNeighborTables(
@@ -317,7 +320,7 @@ def pairwise(query=None, target=None):
         target,
         neighbor_type,
         target_confidences,
-        limit=10,
+        limit=num_neighbors,
         as_single_row=True
     )
 
@@ -346,7 +349,7 @@ def pairwise(query=None, target=None):
 
 ## TODO: change to single query
 def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
-        limit=10, as_single_row=False):
+        limit=10, as_single_row=False, high_confidence_threshold=0.5):
     tables = []
     TABLES_PER_ROW = 3 if not as_single_row else len(corpora)
     for i in range(len(corpora)):
@@ -358,7 +361,7 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
             filter_set,
             query_key,
             neighbor_type=neighbor_type,
-            limit=10
+            limit=limit
         )
 
         table_rows = []
@@ -370,13 +373,22 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
             })
 
         confidence = confidences.get(corpus, None)
-        if confidence is None: confidence = '--'
-        else: confidence = packaging.prettify(confidence)
+        if confidence is None:
+            confidence = '--'
+            table_class = 'no_data'
+        else:
+            if confidence >= high_confidence_threshold:
+                table_class = 'high_confidence'
+            else:
+                table_class = 'low_confidence'
+            confidence = packaging.prettify(confidence)
 
         tables.append({
             'Corpus': corpus,
             'Confidence': confidence,
+            'Class': table_class,
             'Rows': table_rows,
+            'NumRows' : limit,
             'IsGridRowStart': (i % TABLES_PER_ROW) == 0,
             'IsGridRowEnd': (i % TABLES_PER_ROW) == (TABLES_PER_ROW - 1),
         })
