@@ -31,3 +31,11 @@
     font-style: italic;
     color: #999;
 }
+
+.table td.pairwise_link {
+    text-align: center;
+}
+.table td.pairwise_link > a > img {
+    width:30px;
+    height:30px;
+}

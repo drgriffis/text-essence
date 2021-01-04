@@ -345,11 +345,9 @@ def pairwise(query=None, target=None):
         query=query,
         query_preferred_term=query_preferred_term,
         query_terms=sorted(query_term_list),
-        #query_tables=query_tables,
         target=target,
         target_preferred_term=target_preferred_term,
         target_terms=sorted(target_term_list),
-        #target_tables=target_tables,
         paired_tables=paired_tables,
         pairwise_similarity_analysis_base64=pairwise_similarity_analysis_base64
     )
@@ -377,6 +375,7 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
         table_rows = []
         for row in rows:
             table_rows.append({
+                'QueryKey': query_key,
                 'NeighborKey': row.neighbor_key,
                 'NeighborString': row.neighbor_string,
                 'Distance': packaging.prettify(row.mean_distance, decimals=3)

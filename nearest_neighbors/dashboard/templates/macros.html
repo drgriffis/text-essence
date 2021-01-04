@@ -65,6 +65,7 @@
                         <tr>
                             <th>Neighbor</th>
                             <th>Distance</th>
+                            <th>Compare</th>
                         </tr>
                     </thead>
                     {% if table.Class == 'no_data' %}
@@ -83,6 +84,11 @@
                                 </span>
                             </td>
                             <td>{{ row.Distance }}</td>
+                            <td class="pairwise_link">
+                                <a href="/pairwise/{{ row.QueryKey }}/{{ row.NeighborKey }}">
+                                    <img src="/static/images/pairwise-icon.svg" />
+                                </a>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
