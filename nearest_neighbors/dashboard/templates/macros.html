@@ -13,7 +13,18 @@
     <img class="internal_confidence_analysis" src="data:image/png;base64,{{ base64_data }}" />
 {%- endmacro %}
 
-{% macro searchPanel() -%}
+{% macro navbar() -%}
+    <nav class="navbar navbar-dark bg-dark">
+    <div id="navbar-logo" class="navbar-element">
+        <img src="/static/images/text-essence-logo-white.svg" />
+    </div>
+    <div id="navbar-header" class="navbar-element navbar-brand">
+        COVID Diachronic Concept Embeddings
+        <a href="/">
+            <img src="/static/images/home.svg" />
+            <span class="sr-only">Home</span>
+        </a>
+    </div>
     <div id="search_panel" class=="container">
         <form class="navbar-form" role="search" action="{{ url_for('search') }}" method="POST">
             <div class="input-group">
@@ -29,6 +40,7 @@
             </div>
         </form>
     </div>
+    </nav>
 {%- endmacro %}
 
 {% macro tablesPanel(tables, num_per_row) -%}

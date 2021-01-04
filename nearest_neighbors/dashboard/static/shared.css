@@ -1,9 +1,23 @@
+nav {
+    margin-bottom: 30px;
+}
+nav > #navbar-logo > img {
+    width: 100px;
+}
+nav > #navbar-header > a {
+    margin-left: 20px;
+}
+nav > #navbar-header > a > img {
+    width: 40px;
+}
+
 #search_panel {
+    width: 33%;
 }
 
 #search_panel .input-group {
-    margin-left: 50px;
-    margin-right: 50px;
+    background-color: #fff;
+    vertical-align: middle;
 }
 
 #search_panel button,

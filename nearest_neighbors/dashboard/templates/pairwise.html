@@ -4,12 +4,13 @@
 <html lang="en">
 <head>
     <title>{{ query }}|{{ target }} Similarity</title>
+    <link rel="icon" type="image/png" href="/static/images/favicon.png" />
     <link rel="stylesheet" href="{{ url_for('static', filename='shared.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='pairwise.css') }}">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
 </head>
 <body id="info">
-    {{ macros.searchPanel() }}
+    {{ macros.navbar() }}
     <div id="info_panel" class="container">
         <h1>Pairwise similarity</h1>
         <div class="term_block">
