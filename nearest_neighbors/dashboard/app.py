@@ -2,6 +2,7 @@ from flask import Flask
 from flask import render_template
 from flask import request
 from flask import jsonify
+from flask import send_from_directory
 app = Flask(__name__)
 
 import os
@@ -12,6 +13,14 @@ from nearest_neighbors.dashboard import visualization
 
 config = configparser.ConfigParser()
 config.read('config.ini')
+
+@app.route('/')
+def landingPage():
+    return send_from_directory('diachronic-concept-viewer/public', 'index.html')
+
+@app.route('/<path:path>')
+def staticFiles(path):
+    return send_from_directory('diachronic-concept-viewer/public', path)
 
 @app.route('/showchanges', methods=['POST'])
 @app.route('/showchanges/<src>/<trg>/<filter_set>/<at_k>', methods=['GET', 'POST'])
