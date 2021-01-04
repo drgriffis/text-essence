@@ -55,6 +55,13 @@ def writeNodeMap(emb, f):
                 node_id, v
             ))
             node_id += 1
+
+def writePreIndexedNodeMap(node_map, f):
+    with codecs.open(f, 'w', 'utf-8') as stream:
+        for (k,v) in node_map.items():
+            stream.write('%d\t%s\n' % (
+                k, v
+            ))
     
 def readNodeMap(f, as_ordered_list=False):
     node_map = {}
@@ -151,7 +158,7 @@ def readSet(f, to_lower=False):
 
 def loadPairedNeighbors(src, i, trg, config, k, aggregate=False,
         with_distances=True, different_types=False, spec='',
-        filter_spec=''):
+        filter_spec='', query_spec='', vocab_spec=''):
     if not aggregate:
         neighbor_file = config['NeighborFilePattern'].format(
             SRC=src, SRC_RUN=i, TRG=trg, SPEC=spec, FILSPEC=filter_spec 
@@ -165,10 +172,12 @@ def loadPairedNeighbors(src, i, trg, config, k, aggregate=False,
             )
     else:
         neighbor_file = config['AggregateNeighborFilePattern'].format(
-            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec
+            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec,
+            QUERYSPEC=query_spec, VOCABSPEC=vocab_spec
         )
         neighbor_vocab = config['AggregateNeighborVocabFilePattern'].format(
-            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec
+            SRC=src, TRG=trg, SPEC=spec, FILSPEC=filter_spec,
+            QUERYSPEC=query_spec, VOCABSPEC=vocab_spec
         )
         if different_types:
             query_vocab = config['AggregateQueryVocabFilePattern'].format(

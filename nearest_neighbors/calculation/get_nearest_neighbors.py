@@ -18,7 +18,8 @@ class _SIGNALS:
     COMPUTE = 1
 
 def KNearestNeighbors(emb_arrs, node_IDs, top_k, neighbor_file, threads=2,
-        batch_size=5, completed_neighbors=None, with_distances=False):
+        batch_size=5, completed_neighbors=None, with_distances=False,
+        neighbor_file_mode='w'):
     '''docstring goes here
     '''
     # set up threads
@@ -36,7 +37,7 @@ def KNearestNeighbors(emb_arrs, node_IDs, top_k, neighbor_file, threads=2,
     nn_q = mp.Queue()
     nn_writer = mp.Process(
         target=_nn_writer,
-        args=(neighbor_file, node_IDs, None, nn_q, with_distances)
+        args=(neighbor_file, node_IDs, None, nn_q, with_distances, neighbor_file_mode)
     )
     computers = [
         mp.Process(
@@ -53,7 +54,8 @@ def KNearestNeighbors(emb_arrs, node_IDs, top_k, neighbor_file, threads=2,
 
 def KNearestNeighborsFromQueries(emb_arrs, node_IDs, query_emb_arrs,
         query_node_IDs, top_k, neighbor_file, threads=2,
-        batch_size=5, completed_neighbors=None, with_distances=False):
+        batch_size=5, completed_neighbors=None, with_distances=False,
+        neighbor_file_mode='w'):
     '''docstring goes here
     '''
     # set up threads
@@ -72,7 +74,7 @@ def KNearestNeighborsFromQueries(emb_arrs, node_IDs, query_emb_arrs,
     nn_q = mp.Queue()
     nn_writer = mp.Process(
         target=_nn_writer,
-        args=(neighbor_file, node_IDs, query_node_IDs, nn_q, with_distances)
+        args=(neighbor_file, node_IDs, query_node_IDs, nn_q, with_distances, neighbor_file_mode)
     )
     computers = [
         mp.Process(
@@ -87,8 +89,8 @@ def KNearestNeighborsFromQueries(emb_arrs, node_IDs, query_emb_arrs,
     nn_q.put(_SIGNALS.HALT)
     nn_writer.join()
 
-def _nn_writer(neighborf, node_IDs, query_node_IDs, nn_q, with_distances):
-    stream = open(neighborf, 'w')
+def _nn_writer(neighborf, node_IDs, query_node_IDs, nn_q, with_distances, neighbor_file_mode):
+    stream = open(neighborf, neighbor_file_mode)
     stream.write('# File format is:\n# <word vocab index>,<NN 1>,<NN 2>,...\n')
 
     total = len(node_IDs) if query_node_IDs is None else len(query_node_IDs)
@@ -187,6 +189,11 @@ if __name__ == '__main__':
                      ' keys between the first of those files and this file instead.)')
         parser.add_option('--filter-to', dest='filter_to',
                 help='(optional) file listing keys to filter neighbor calculation to')
+        parser.add_option('--filtered-query-keys', dest='filtered_query_keys',
+                help='(optional) file listing keys in EMB1/EMB2/EMB3... that we'
+                     ' should use as queries (NB this is DISTINCT from'
+                     ' --draw-queries-from + --filter-queries-to, which use a'
+                     ' DIFFERENT set of embeddings as queries)')
         parser.add_option('--filter-queries-to', dest='filter_queries_to',
                 help='(optional) file listing query keys to filter neighbor calculation to')
         parser.add_option('--with-distances', dest='with_distances',
@@ -235,6 +242,7 @@ if __name__ == '__main__':
         ('Restricting queries to keys listed in', ('N/A' if not options.filter_queries_to else options.filter_queries_to)),
     ], 'k Nearest Neighbor calculation with cosine similarity')
 
+    ## TODO: convert to using an EmbeddingReplicates object
     embeds = []
     for i in range(len(embedfs)):
         t_sub = log.startTimer('Reading embeddings (set %d) from %s...' % (i, embedfs[i]))
@@ -242,6 +250,7 @@ if __name__ == '__main__':
         log.stopTimer(t_sub, message='Read {0:,} embeddings in {1}s.\n'.format(len(these_embeds), '{0:.2f}'))
         embeds.append(these_embeds)
 
+    ## TODO: convert to using an EmbeddingReplicates object
     query_embeds = None
     if options.draw_queries_from:
         query_embeds = []
@@ -254,17 +263,33 @@ if __name__ == '__main__':
     if options.filter_to:
         log.writeln('Reading list of keys to filter to from %s...' % options.filter_to)
         filter_set = nn_io.readSet(options.filter_to, to_lower=True)
-        filtered_embed_sets = []
+
+        if options.filtered_query_keys:
+            log.writeln('Reading list of keys to query with from %s...' % options.filtered_query_keys)
+            filtered_query_keys = nn_io.readSet(options.filtered_query_keys, to_lower=True)
+            filtered_query_keys -= filter_set  # reduce to keys not already included in the target set
+        else:
+            filtered_query_keys = set()
+
+        filtered_embed_sets, filtered_query_embed_sets = [], []
         for emb in embeds:
             filtered_embs = pyemblib.Embeddings()
+            filtered_query_embs = pyemblib.Embeddings()
             for (k,v) in emb.items():
                 if k.lower() in filter_set:
                     filtered_embs[k] = v
+                elif k.lower() in filtered_query_keys:
+                    filtered_query_embs[k] = v
             filtered_embed_sets.append(filtered_embs)
+            filtered_query_embed_sets.append(filtered_query_embs)
         embeds = filtered_embed_sets
-        log.writeln('  Read set of {0:,} keys'.format(len(filter_set)))
-        log.writeln('  Filtered to {0:,} embeddings\n'.format(len(embeds[0])))
+        log.writeln('  Read set of {0:,} target keys'.format(len(filter_set)))
+        log.writeln('  Filtered to {0:,} target embeddings\n'.format(len(embeds[0])))
+        if options.filtered_query_keys:
+            log.writeln('  Read set of {0:,} query keys'.format(len(filtered_query_keys)))
+            log.writeln('  Filtered to {0:,} further query embeddings\n'.format(len(filtered_query_embed_sets[0])))
 
+    ## TODO: adjust this to better work with the new query filtering option above
     if options.filter_queries_to and options.draw_queries_from:
         log.writeln('Reading list of keys to filter queries to from %s...' % options.filter_queries_to)
         filter_set = nn_io.readSet(options.filter_queries_to, to_lower=True)
@@ -312,6 +337,55 @@ if __name__ == '__main__':
         log.writeln('Reading node ID <-> vocab map from %s...\n' % options.vocabf)
     node_map = nn_io.readNodeMap(options.vocabf)
 
+    #
+    # TODO
+    # Make this stuff be handled in EmbeddingReplicates objects...
+    # this is ridiculous as it is now
+    #
+    #
+    # if we meet the following 2 conditions:
+    # (1) we are filtering the set of candidate neighbors (the "target" set),
+    #     using --filter-to
+    # (2) we are also using a different set of filtered query keys (the "query"
+    #     set), which are drawn from the same set of embeddings as the target
+    #     set, using --filtered-query-keys
+    # then, do the following:
+    # |1| write out a separate node map combining those query keys and the
+    #     target keys (for later reverse mapping)
+    # |2| write out another node map for the query keys only, for consistent
+    #     indexing across replicates
+    if options.filter_to and options.filtered_query_keys:
+        # (i) start out by ensuring that the master node map is based
+        #     on the target-only node map established above
+        master_node_map = nn_io.readNodeMap(options.vocabf)
+        # (ii) build the query-only node map, indexed disjointly with the
+        #     target-only map
+        next_ix = max(master_node_map.keys()) + 1
+        query_only_map = {}
+        for k in filtered_query_embed_sets[0].keys():
+            query_only_map[next_ix] = k
+            next_ix += 1
+        # (iii) unify them
+        for (k,v) in query_only_map.items():
+            master_node_map[k] = v
+        # (iv) write out the master map
+        master_vocabf = '%s.master' % options.vocabf
+        if not os.path.isfile(master_vocabf):
+            log.writeln('Writing master node ID <-> vocab map to %s...\n' % master_vocabf)
+            nn_io.writePreIndexedNodeMap(master_node_map, master_vocabf)
+        else:
+            log.writeln('Reading master node ID <-> vocab map from %s...\n' % master_vocabf)
+        master_node_map = nn_io.readNodeMap(master_vocabf)
+        # (v) write out the query-only map
+        query_vocabf = '%s.filtered_queries' % options.vocabf
+        if not os.path.isfile(query_vocabf):
+            log.writeln('Writing filtered query node ID <-> vocab map to %s...\n' % query_vocabf)
+            nn_io.writePreIndexedNodeMap(query_only_map, query_vocabf)
+        else:
+            log.writeln('Reading query node ID <-> vocab map from %s...\n' % query_vocabf)
+        query_node_map = nn_io.readNodeMap(query_vocabf)
+
+    # TODO handle this crap in light of new filtered_query_keys settings above
     if options.draw_queries_from:
         query_vocabf = '%s.query' % options.vocabf
         if not os.path.isfile(query_vocabf):
@@ -338,7 +412,7 @@ if __name__ == '__main__':
         emb_arrs.append(emb_arr)
     
     # do the same setup for query embedding arrays
-    if options.draw_queries_from:
+    if options.filtered_query_keys or options.draw_queries_from:
         query_node_IDs = list(query_node_map.keys())
         query_node_IDs.sort()
         ordered_query_vocab = [
@@ -347,11 +421,18 @@ if __name__ == '__main__':
         ]
 
         query_emb_arrs = []
-        for i in range(len(query_embeds)):
-            query_emb_arr = np.array([
-                query_embeds[i][v] for v in ordered_query_vocab
-            ])
-            query_emb_arrs.append(query_emb_arr)
+        if options.draw_queries_from:
+            for i in range(len(query_embeds)):
+                query_emb_arr = np.array([
+                    query_embeds[i][v] for v in ordered_query_vocab
+                ])
+                query_emb_arrs.append(query_emb_arr)
+        elif options.filtered_query_keys:
+            for i in range(len(filtered_query_embed_sets)):
+                query_emb_arr = np.array([
+                    filtered_query_embed_sets[i][v] for v in ordered_query_vocab
+                ])
+                query_emb_arrs.append(query_emb_arr)
 
     # TODO: what should this do if a query set is specified?
     if options.partial_neighbors_file:
@@ -365,7 +446,7 @@ if __name__ == '__main__':
         completed_neighbors = set()
 
     log.writeln('Calculating k nearest neighbors.')
-    if options.draw_queries_from:
+    if options.draw_queries_from or options.filtered_query_keys:
         KNearestNeighborsFromQueries(
             emb_arrs,
             node_IDs,
@@ -378,7 +459,7 @@ if __name__ == '__main__':
             completed_neighbors=completed_neighbors,
             with_distances=options.with_distances
         )
-    else:
+    if not options.draw_queries_from:
         KNearestNeighbors(
             emb_arrs,
             node_IDs,
@@ -387,7 +468,8 @@ if __name__ == '__main__':
             threads=options.threads,
             batch_size=options.batch_size,
             completed_neighbors=completed_neighbors,
-            with_distances=options.with_distances
+            with_distances=options.with_distances,
+            neighbor_file_mode=('a' if options.filtered_query_keys else 'w')
         )
     log.writeln('Done!\n')
 
