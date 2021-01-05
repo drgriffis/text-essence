@@ -182,6 +182,21 @@ def info(query_key=None):
     )
 
 
+@app.route('/_get_entity_info'):
+    query_key = request.args.get('query_key', None)
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+    term_list, preferred_term = getTerms(
+        db,
+        query_key
+    )
+    return jsonify({
+        'name': preferred_term,
+        'description': 'Other terms:\n{0}'.format(
+            '\n'.join(sorted(term_list))
+        ),
+    })
+
+
 @app.route('/terms', methods=['POST'])
 @app.route('/terms/<query_key>', methods=['GET', 'POST'])
 def terms(query_key=None):
