@@ -165,12 +165,6 @@ def info(query_key=None):
         kwargs={'figsize': (11,3), 'font_size': 14}
     )
 
-    confidence_analysis_base64 = packaging.renderImage(
-        visualization.internalConfidenceAnalysis,
-        args=(corpora, [confidences.get(c, None) for c in corpora], hc_threshold),
-        kwargs={'figsize': (6,2), 'font_size': 14}
-    )
-
     return jsonify({
         "id": query_key,
         "name": preferred_term,
@@ -187,15 +181,6 @@ def info(query_key=None):
              "distance": float(n["Distance"])} for n in tables[i]["Rows"]
         ] for i, c in enumerate(corpora)}
     })
-    # return render_template(
-    #     'info.html',
-    #     query_key=query_key,
-    #     preferred_term=preferred_term,
-    #     all_terms=sorted(term_list),
-    #     tables=tables,
-    #     entity_change_analysis_base64=entity_change_analysis_base64,
-    #     confidence_analysis_base64=confidence_analysis_base64
-    # )
 
 
 @app.route('/terms', methods=['POST'])
@@ -358,13 +343,6 @@ def pairwise(query=None, target=None):
         paired_tables.append(query_tables[i])
         paired_tables.append(target_tables[i])
 
-    ## (5) draw the pairwise similarity graph
-    pairwise_similarity_analysis_base64 = packaging.renderImage(
-        visualization.pairwiseSimilarityAnalysis,
-        args=(corpora, means, stds),
-        kwargs={'figsize': (13,3), 'font_size': 14}
-    )
-
     return jsonify({
         "firstName": query_preferred_term,
         "secondName": target_preferred_term,
@@ -373,12 +351,14 @@ def pairwise(query=None, target=None):
                 "label": label,
                 "meanSimilarity": means[i],
                 "stdSimilarity": stds[i],
-                "queryNeighbors": [
+                "firstConfidence": float(query_tables[i]["Confidence"]),
+                "secondConfidence": float(target_tables[i]["Confidence"]),
+                "firstNeighbors": [
                     {"id": n["NeighborKey"],
                     "name": n["NeighborString"],
                     "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
                 ],
-                "targetNeighbors": [
+                "secondNeighbors": [
                     {"id": n["NeighborKey"],
                     "name": n["NeighborString"],
                     "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
@@ -386,17 +366,6 @@ def pairwise(query=None, target=None):
             } for i, label in enumerate(corpora)
         }
     })
-    # return render_template(
-    #     'pairwise.html',
-    #     query=query,
-    #     query_preferred_term=query_preferred_term,
-    #     query_terms=sorted(query_term_list),
-    #     target=target,
-    #     target_preferred_term=target_preferred_term,
-    #     target_terms=sorted(target_term_list),
-    #     paired_tables=paired_tables,
-    #     pairwise_similarity_analysis_base64=pairwise_similarity_analysis_base64
-    # )
 
 
 
