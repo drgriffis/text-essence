@@ -163,11 +163,12 @@ def info(query_key=None):
         else:
             cwds.append(None)
 
-    entity_change_analysis_base64 = packaging.renderImage(
-        visualization.entityChangeAnalysis,
-        args=(corpora, cwds),
-        kwargs={'figsize': (11,3), 'font_size': 14}
-    )
+    if any(cwds):
+        entity_change_analysis_base64 = packaging.renderImage(
+            visualization.entityChangeAnalysis,
+            args=(corpora, cwds),
+            kwargs={'figsize': (11,3), 'font_size': 14}
+        )
 
     return jsonify({
         "id": query_key,
