@@ -572,6 +572,62 @@ class EmbeddingNeighborhoodDatabase:
             )
             yield ret_obj
 
+    def selectAllIDsFromAggregateNearestNeighbors(self, src, trg, filter_set,
+            neighbor_type=EmbeddingType.ENTITY):
+        """Selects all neighbor sets for the given source and target corpus.
+        Returned objects DO NOT contain query and neighbor string names for
+        performance reasons."""
+
+        query = '''
+        SELECT
+            ann.Source,
+            anns.Target,
+            anns.FilterSet,
+            ann.EntityKey,
+            ann.NeighborKey,
+            ann.MeanDistance
+        FROM
+            AggregateNearestNeighbors AS ann
+            INNER JOIN
+                AggregateNearestNeighborSubsets AS anns
+                ON
+                    anns.NeighborID = ann.ID
+        WHERE
+            ann.Source=?
+            AND anns.Target=?
+            AND anns.FilterSet=?
+            AND ann.NeighborType=?
+        ORDER BY ann.MeanDistance ASC
+        '''
+
+        args = [
+            src,
+            trg,
+            filter_set,
+            neighbor_type
+        ]
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                source,
+                target,
+                filter_set,
+                entity_key,
+                neighbor_key,
+                mean_distance,
+            ) = row
+            ret_obj = AggregateNearestNeighbor(
+                source=source,
+                target=target,
+                filter_set=filter_set,
+                key=entity_key,
+                string=None,
+                neighbor_key=neighbor_key,
+                neighbor_string=None,
+                mean_distance=mean_distance
+            )
+            yield ret_obj
 
     def findAggregateNearestNeighborsMembership(self, key,
             neighbor_type=EmbeddingType.ENTITY):

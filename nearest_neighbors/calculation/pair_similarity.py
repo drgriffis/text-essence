@@ -84,7 +84,10 @@ if __name__ == '__main__':
     for src in options.src.split(','):
         src_config = config[src]
         log.writeln('Loading embedding replicates...')
-        replicates = nn_io.EmbeddingReplicates(src, src_config)
+        replicates = nn_io.EmbeddingReplicates(
+            src,
+            src_config['ReplicateTemplate'].format(REPL='*'),
+            src_config['EmbeddingFormat'])
         log.writeln('Found {0:,} replicates.\n'.format(len(replicates)))
 
         t = log.startTimer('Calculating aggregate pairwise similarity...')
