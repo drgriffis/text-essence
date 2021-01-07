@@ -132,8 +132,12 @@ def info(query_key=None):
         high_confidence_threshold=hc_threshold
     )
 
-    ## (3) get the terms for the entity
+    ## (3) get the terms and definitions for the entity
     term_list, preferred_term = getTerms(
+        db,
+        query_key
+    )
+    definition_list = getDefinitions(
         db,
         query_key
     )
@@ -168,7 +172,7 @@ def info(query_key=None):
     return jsonify({
         "id": query_key,
         "name": preferred_term,
-        "description": "Dummy description",
+        "definitions": sorted(definition_list),
         "confidences": {i: confidences.get(c, None) for i, c in enumerate(corpora)},
         "otherTerms": sorted(term_list),
         "frameDescriptions": {
@@ -442,3 +446,12 @@ def getTerms(db, query_key):
         else:
             term_list.append(term.term)
     return term_list, preferred_term
+
+def getDefinitions(db, query_key):
+    all_definitions = db.selectFromEntityDefinitions(
+        query_key
+    )
+    return [
+        defn.definition
+            for defn in all_definitions
+    ]
