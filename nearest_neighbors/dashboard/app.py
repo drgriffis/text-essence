@@ -17,10 +17,23 @@ config.read('config.ini')
 @app.route('/')
 def landingPage():
     return send_from_directory('diachronic-concept-viewer/public', 'index.html')
-
+        
 @app.route('/<path:path>')
 def staticFiles(path):
     return send_from_directory('diachronic-concept-viewer/public', path)
+
+@app.route('/visualization')
+def getVisualizationData():
+    vis_path = os.path.join(os.path.dirname(__file__), "static/visualization.json")
+    if not os.path.exists(vis_path):
+        return app.response_class(
+            response="The dataset does not exist", status=404)
+    with open(vis_path, "r") as file:
+        return app.response_class(
+            response=file.read(),
+            status=200,
+            mimetype='application/json'
+        )
 
 @app.route('/showchanges', methods=['POST'])
 @app.route('/showchanges/<src>/<trg>/<filter_set>/<at_k>', methods=['GET', 'POST'])
@@ -400,6 +413,7 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
                 'NeighborString': row.neighbor_string,
                 'Distance': packaging.prettify(row.mean_distance, decimals=3)
             })
+        print(corpus, corpus, filter_set, neighbor_type, table_rows)
 
         confidence = confidences.get(corpus, None)
         if confidence is None:
