@@ -23,6 +23,12 @@
                 <li>{{ term }}</li>
                 {% endfor %}
             </ul>
+            Definitions
+            <ul>
+                {% for defn in all_definitions %}
+                <li>{{ defn }}</li>
+                {% endfor %}
+            </ul>
         </div>
         <div id="confidencePanel">
             <h5>Embedding confidence</h5>

@@ -114,6 +114,17 @@ class EmbeddingNeighborhoodDatabase:
         ''')
 
 
+        ## the EntityDefinitions table maps entity keys to string definitions
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS EntityDefinitions
+        (
+            EntityKey text,
+            Definition text,
+            UNIQUE(EntityKey, Definition)
+        )
+        ''')
+
+
         ## the AggregatePairwiseSimilarity table stores cosine similarity
         ## values between entity pairs within a given source corpus
         ## (calculated as the mean similarity over replicates)
@@ -144,6 +155,8 @@ class EmbeddingNeighborhoodDatabase:
             self.insertOrUpdateIntoAggregateNearestNeighbors(objects, *args, **kwargs)
         elif type(objects[0]) is EntityTerm:
             self.insertOrUpdateIntoEntityTerms(objects, *args, **kwargs)
+        elif type(objects[0]) is EntityDefinition:
+            self.insertOrUpdateIntoEntityDefinitions(objects, *args, **kwargs)
         elif type(objects[0]) is AggregatePairwiseSimilarity:
             self.insertOrUpdateIntoAggregatePairwiseSimilarity(objects, *args, **kwargs)
 
@@ -280,6 +293,28 @@ class EmbeddingNeighborhoodDatabase:
             '''
             REPLACE INTO EntityTerms VALUES (
                 ?, ?, ?
+            )
+            ''',
+            rows
+        )
+
+        self._connection.commit()
+
+    def insertOrUpdateIntoEntityDefinitions(self, ent_defns):
+        if (not type(ent_defns) is list) and (not type(ent_defns) is tuple):
+            ent_defns = [ent_defns]
+
+        rows = [
+            (
+                ed.entity_key, ed.definition
+            )
+                for ed in ent_defns
+        ]
+
+        self._cursor.executemany(
+            '''
+            REPLACE INTO EntityDefinitions VALUES (
+                ?, ?
             )
             ''',
             rows
@@ -585,6 +620,31 @@ class EmbeddingNeighborhoodDatabase:
                 entity_key=entity_key,
                 term=term,
                 preferred=preferred
+            )
+            yield ret_obj
+
+
+    def selectFromEntityDefinitions(self, key):
+        query = '''
+        SELECT
+            *
+        FROM
+            EntityDefinitions
+        WHERE
+            EntityKey=?
+        '''
+
+        args = [key]
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                entity_key,
+                definition,
+            ) = row
+            ret_obj = EntityDefinition(
+                entity_key=entity_key,
+                definition=definition
             )
             yield ret_obj
 

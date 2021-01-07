@@ -132,8 +132,12 @@ def info(query_key=None):
         high_confidence_threshold=hc_threshold
     )
 
-    ## (3) get the terms for the entity
+    ## (3) get the terms and definitions for the entity
     term_list, preferred_term = getTerms(
+        db,
+        query_key
+    )
+    definition_list = getDefinitions(
         db,
         query_key
     )
@@ -176,6 +180,7 @@ def info(query_key=None):
         query_key=query_key,
         preferred_term=preferred_term,
         all_terms=sorted(term_list),
+        all_definitions=sorted(definition_list),
         tables=tables,
         entity_change_analysis_base64=entity_change_analysis_base64,
         confidence_analysis_base64=confidence_analysis_base64
@@ -436,3 +441,12 @@ def getTerms(db, query_key):
         else:
             term_list.append(term.term)
     return term_list, preferred_term
+
+def getDefinitions(db, query_key):
+    all_definitions = db.selectFromEntityDefinitions(
+        query_key
+    )
+    return [
+        defn.definition
+            for defn in all_definitions
+    ]

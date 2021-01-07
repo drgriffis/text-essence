@@ -64,6 +64,14 @@ class EntityTerm:
         self.term = term
         self.preferred = preferred
 
+class EntityDefinition:
+    entity_key = None
+    definition = None
+
+    def __init__(self, entity_key, definition):
+        self.entity_key = entity_key
+        self.definition = definition
+
 class AggregatePairwiseSimilarity:
     source = None
     key = None
