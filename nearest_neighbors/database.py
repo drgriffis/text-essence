@@ -679,6 +679,33 @@ class EmbeddingNeighborhoodDatabase:
             )
             yield ret_obj
 
+    def selectAllPreferredEntityNamesWithNeighbors(self):
+        query = '''
+        SELECT
+            ann.EntityKey as EntityKey,
+            et_query.Term as EntityName
+        FROM
+            EntityTerms AS et_query
+            INNER JOIN
+                AggregateNearestNeighbors AS ann
+                ON
+                    ann.EntityKey = et_query.EntityKey
+        WHERE
+            et_query.Preferred = 1
+        '''
+
+        self._cursor.execute(query)
+        for row in self._cursor:
+            (
+                entity_key,
+                term
+            ) = row
+            ret_obj = EntityTerm(
+                entity_key=entity_key,
+                term=term,
+                preferred=True
+            )
+            yield ret_obj
 
     def selectFromEntityDefinitions(self, key):
         query = '''

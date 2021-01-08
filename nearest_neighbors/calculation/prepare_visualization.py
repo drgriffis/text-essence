@@ -219,7 +219,7 @@ if __name__ == '__main__':
     labels = labels_df[label_col].to_dict()
 
     frames = []
-    corpora = analysis_config['CorpusOrdering'].split(',')
+    corpora = visualization_config['VisualizationCorpora'].split(',')
     for corpus in corpora:
         log.writeln('Loading embedding for {}...'.format(corpus))
         emb_path = os.path.join(

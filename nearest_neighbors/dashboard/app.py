@@ -35,6 +35,20 @@ def getVisualizationData():
             mimetype='application/json'
         )
 
+@app.route('/entities')
+def listAllEntities():
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+    
+    rows = db.selectAllPreferredEntityNamesWithNeighbors()
+    unique_ids = set()
+    result = []
+    for row in rows:
+        if row.entity_key in unique_ids: continue
+        result.append({"id": row.entity_key, "name": row.term})
+        unique_ids.add(row.entity_key)
+    
+    return jsonify(result)
+
 @app.route('/showchanges', methods=['POST'])
 @app.route('/showchanges/<src>/<trg>/<filter_set>/<at_k>', methods=['GET', 'POST'])
 def showChanges(src=None, trg=None, filter_set=None, at_k=None):
@@ -413,7 +427,6 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
                 'NeighborString': row.neighbor_string,
                 'Distance': packaging.prettify(row.mean_distance, decimals=3)
             })
-        print(corpus, corpus, filter_set, neighbor_type, table_rows)
 
         confidence = confidences.get(corpus, None)
         if confidence is None:
