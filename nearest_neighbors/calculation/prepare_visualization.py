@@ -12,7 +12,7 @@ from . import moving_scatterplot as ms
 
 AT_K = 5
 
-def build_frame(embedding, corpus, db, labels, confidence_threshold=0.0, num_neighbors=10):
+def build_frame(embedding, corpus, db, labels, confidence_threshold=0.0, num_to_plot=None, num_neighbors=10):
     """
     Builds a ScatterplotFrame using the given embedding object. 
     
@@ -21,7 +21,9 @@ def build_frame(embedding, corpus, db, labels, confidence_threshold=0.0, num_nei
         corpus: String identifying the corpus in the database
         db: An EmbeddingNeighborhoodDatabase
         labels: A dictionary mapping entity IDs to string labels 
-        confidence_threshold: Minimum confidence required to show in plot
+        confidence_threshold: Filter by confidence
+        num_to_plot: Number of highest-confidence entities to plot (or None to
+            plot all)
         num_neighbors: Number of neighbors to retrieve
     
     Returns: A ScatterplotFrame containing the following keys:
@@ -36,7 +38,6 @@ def build_frame(embedding, corpus, db, labels, confidence_threshold=0.0, num_nei
     ids = set(embedding.keys())
     points = []
     num_filtered = {}
-    hi_d = []
     
     # Get all nearest neighbors for this corpus
     log.writeln("Getting nearest neighbors...")
@@ -91,15 +92,25 @@ def build_frame(embedding, corpus, db, labels, confidence_threshold=0.0, num_nei
             "confidence": confidence,
             "highlight": neighbors
         })
-        hi_d.append(embedding[id_val])
 
     log.writeln("{} in embedding, filtered: {}, remaining: {}".format(
         len(ids), num_filtered, len(points)))
+    
+    if num_to_plot is not None and len(points) > num_to_plot:
+        # Sort by confidence and filter
+        points = sorted(points,
+                        key=lambda x: x["confidence"],
+                        reverse=True)[:num_to_plot]
+        log.writeln(("Keeping {} highest-confidence points "
+                     "(lowest confidence: {:.3f})").format(
+                         len(points),
+                         points[-1]["confidence"] if points else "nan"))
+    
     # Build ScatterplotFrame
     frame = ms.ScatterplotFrame(points)
-    
+
     # Compute TSNE and add to the frame
-    hi_d = np.vstack(hi_d)
+    hi_d = np.vstack([embedding[id_val] for id_val in frame.get_ids()])
     lo_d = TSNE(metric='cosine', n_iter=2000).fit_transform(hi_d)
     frame.set_mat(["x", "y"], lo_d)
     
@@ -219,7 +230,7 @@ if __name__ == '__main__':
     labels = labels_df[label_col].to_dict()
 
     frames = []
-    corpora = visualization_config['VisualizationCorpora'].split(',')
+    corpora = analysis_config['CorpusOrdering'].split(',')
     for corpus in corpora:
         log.writeln('Loading embedding for {}...'.format(corpus))
         emb_path = os.path.join(
@@ -231,6 +242,7 @@ if __name__ == '__main__':
 
         t = log.startTimer('Building frame and running TSNE...')
         frame = build_frame(embedding, corpus, db, labels,
+                            num_to_plot=int(visualization_config["NumEntitiesPerFrame"]),
                             confidence_threshold=hc_threshold,
                             num_neighbors=num_neighbors)
         frames.append(frame)
