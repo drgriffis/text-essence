@@ -7,7 +7,7 @@ from ..data_models import AggregatePairwiseSimilarity
 from ..database import EmbeddingNeighborhoodDatabase
 
 
-def calculateAggregatePairwiseSimilarity(replicates, query, target, db):
+def calculateAggregatePairwiseSimilarity(group, replicates, query, target, db):
     cos_sims = []
     for these_embeds in replicates:
         #t_sub = log.startTimer('Calculating similarity in embedding set %d (%s)...' % (i, embedfs[i]))
@@ -22,8 +22,10 @@ def calculateAggregatePairwiseSimilarity(replicates, query, target, db):
         cos_sim = np.dot(query_vec, target_vec)
         cos_sims.append(cos_sim)
 
+    source_set = db.getOrCreateEmbeddingSet(name=replicates.ID, group_name=group)
+
     sim = AggregatePairwiseSimilarity(
-        source=replicates.ID,
+        source=source_set,
         key=query,
         neighbor_key=target,
         mean_similarity=np.mean(cos_sims),
@@ -38,6 +40,8 @@ if __name__ == '__main__':
     def _cli():
         import optparse
         parser = optparse.OptionParser(usage='Usage: %prog')
+        parser.add_option('-g', '--group', dest='group',
+            help='(required) embedding set group specifier')
         parser.add_option('-s', '--src', dest='src',
             help='(required) source specifier (may provide more than one as'
                  ' comma-separated list)')
@@ -52,6 +56,9 @@ if __name__ == '__main__':
             default=None)
         (options, args) = parser.parse_args()
 
+        if not options.group:
+            parser.print_help()
+            parser.error('Must provide --group')
         if not options.query_key:
             parser.print_help()
             parser.error('Must provide --query')
@@ -64,6 +71,7 @@ if __name__ == '__main__':
     embedfs, options = _cli()
     log.start(options.logfile)
     log.writeConfig([
+        ('Group specifier', options.group),
         ('Source specifier (comma-separated)', options.src),
         ('Configuraiton file', options.configf),
         ('Query key', options.query_key),
@@ -92,6 +100,7 @@ if __name__ == '__main__':
 
         t = log.startTimer('Calculating aggregate pairwise similarity...')
         sim = calculateAggregatePairwiseSimilarity(
+            group,
             replicates,
             options.query_key,
             options.target_key,

@@ -7,8 +7,10 @@ from ..data_models import *
 from ..database import EmbeddingNeighborhoodDatabase
 from .paired_neighborhood_overlap import pairedOverlapDistributions
 
-def analyzeInternalConfidence(src, config, db, k=5, outf=None, filter_spec=''):
+def analyzeInternalConfidence(group, src, config, db, k=5, outf=None, filter_spec=''):
     src_neighbor_sets = []
+
+    source_set = db.getOrCreateEmbeddingSet(name=src, group_name=group)
 
     log.track('  >> [1/3] Loaded {0:,}/10 neighbor sets')
     for i in range(1,11):
@@ -34,7 +36,7 @@ def analyzeInternalConfidence(src, config, db, k=5, outf=None, filter_spec=''):
     confidences = []
     for key in src_self_distribs:
         confidences.append(InternalConfidence(
-            source=src,
+            source=source_set,
             at_k=k,
             key=key,
             confidence=src_self_distribs[key]
@@ -53,6 +55,8 @@ if __name__ == '__main__':
     def _cli():
         import optparse
         parser = optparse.OptionParser(usage='Usage: %prog')
+        parser.add_option('-g', '--group', dest='group',
+            help='(required) embedding set group specifier')
         parser.add_option('-s', '--src', dest='src',
             help='(required) source specifier')
         parser.add_option('--filter-spec', dest='filter_spec',
@@ -69,6 +73,9 @@ if __name__ == '__main__':
             help='name of file to write log contents to (empty for stdout)',
             default=None)
         (options, args) = parser.parse_args()
+        if not options.group:
+            parser.print_help()
+            parser.error('Must provide --group')
         if not options.src:
             parser.print_help()
             parser.error('Must provide --src')
@@ -77,6 +84,7 @@ if __name__ == '__main__':
     options = _cli()
     log.start(options.logfile)
     log.writeConfig([
+        ('Group specifier', options.group),
         ('Source specifier', options.src),
         ('Filter specifier', options.filter_spec),
         ('Configuration file', options.configf),
@@ -96,6 +104,7 @@ if __name__ == '__main__':
 
     log.writeln('Analyzing {0} internal confidence...'.format(options.src))
     analyzeInternalConfidence(
+        options.group,
         options.src,
         config,
         db,

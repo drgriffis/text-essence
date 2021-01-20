@@ -4,7 +4,7 @@ from .. import nn_io
 from ..data_models import *
 from ..database import *
 
-def loadAggregateNeighbors(src, trg, config, db, k=10, neighbor_type=None,
+def loadAggregateNeighbors(group_name, src, trg, config, db, k=10, neighbor_type=None,
         spec='', filter_spec='', query_spec='', vocab_spec=''):
     log.writeln('  >> Loading pre-calculated aggregate nearest neighbors')
     aggregate_neighbors = nn_io.loadPairedNeighbors(
@@ -14,6 +14,10 @@ def loadAggregateNeighbors(src, trg, config, db, k=10, neighbor_type=None,
         vocab_spec=vocab_spec
     )
 
+    # get source and target EmbeddingSet objects
+    source_set = db.getOrCreateEmbeddingSet(name=src, group_name=group_name)
+    source_set = db.getOrCreateEmbeddingSet(name=trg, group_name=group_name)
+
     if neighbor_type is None: neighbor_type = EmbeddingType.ENTITY
 
     log.writeln('  >> Adding to database')
@@ -21,8 +25,8 @@ def loadAggregateNeighbors(src, trg, config, db, k=10, neighbor_type=None,
     for (key, nbr_list) in aggregate_neighbors.items():
         for (nbr_key, dist) in nbr_list:
             nbrs.append(AggregateNearestNeighbor(
-                source=src,
-                target=trg,
+                source=source_set,
+                target=target_set,
                 filter_set=filter_spec,
                 key=key,
                 neighbor_key=nbr_key,
@@ -35,6 +39,8 @@ if __name__ == '__main__':
     def _cli():
         import optparse
         parser = optparse.OptionParser(usage='Usage: %prog')
+        parser.add_option('-g', '--group', dest='group',
+            help='(required) embedding set group specifier')
         parser.add_option('-s', '--src', dest='src',
             help='(required) source specifier')
         parser.add_option('-t', '--trg', dest='trg',
@@ -59,6 +65,9 @@ if __name__ == '__main__':
             help='name of file to write log contents to (empty for stdout)',
             default=None)
         (options, args) = parser.parse_args()
+        if not options.group:
+            parser.print_help()
+            parser.error('Must provide --group')
         if not options.src:
             parser.print_help()
             parser.error('Must provide --src')
@@ -73,6 +82,7 @@ if __name__ == '__main__':
     options = _cli()
     log.start(options.logfile)
     log.writeConfig([
+        ('Group specifier', options.group),
         ('Source specifier', options.src),
         ('Target specifier', options.trg),
         ('Filter specifier', options.filter_spec),
@@ -101,6 +111,7 @@ if __name__ == '__main__':
 
     log.writeln('Loading aggregate {0}/{1} neighbors into database...'.format(options.src, options.trg))
     loadAggregateNeighbors(
+        options.group,
         options.src,
         options.trg,
         config,
