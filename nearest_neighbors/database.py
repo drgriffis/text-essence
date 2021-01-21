@@ -265,7 +265,7 @@ class EmbeddingNeighborhoodDatabase:
                 REPLACE INTO
                     EmbeddingSetGroups
                 VALUES (
-                    ?, ?
+                    ?, ?, ?
                 )
                 ''',
                 existing_rows
@@ -430,7 +430,12 @@ class EmbeddingNeighborhoodDatabase:
                 AND NeighborKey=?
                 AND NeighborType=?
             '''
-            args = [nbr.source, nbr.key, nbr.neighbor_key, neighbor_type]
+            args = [
+                nbr.source.ID,
+                nbr.key,
+                nbr.neighbor_key,
+                neighbor_type
+            ]
             self._cursor.execute(query, args)
 
             nbr_info = self._cursor.fetchone()
@@ -574,10 +579,10 @@ class EmbeddingNeighborhoodDatabase:
 
 
     def getOrCreateEmbeddingSetGroup(self, short_name):
-        groups = list(self.selectFromEmbeddingSetGroups(short_name=group_name))
+        groups = list(self.selectFromEmbeddingSetGroups(short_name=short_name))
         if len(groups) == 0:
             group = EmbeddingSetGroup(
-                short_name=group_name
+                short_name=short_name
             )
             self.insertOrUpdate(group)
         else:
@@ -630,8 +635,8 @@ class EmbeddingNeighborhoodDatabase:
         conditions, args = [], []
 
         if ids:
-            conditions.append('ID IN ?')
-            args.append(ids)
+            conditions.append('ID IN (?)')
+            args.append(','.join([str(i) for i in ids]))
         if short_name:
             conditions.append('ShortName = ?')
             args.append(short_name)
@@ -644,11 +649,13 @@ class EmbeddingNeighborhoodDatabase:
         for row in self._cursor:
             (
                 ID,
-                title
+                short_name,
+                display_title
             ) = row
             ret_obj = EmbeddingSetGroup(
                 ID=ID,
-                title=title
+                short_name=short_name,
+                display_title=display_title
             )
             yield ret_obj
 
@@ -673,8 +680,8 @@ class EmbeddingNeighborhoodDatabase:
         conditions, args = [], []
 
         if ids:
-            conditions.append('ID IN ?')
-            args.append(ids)
+            conditions.append('ID IN (?)')
+            args.append(','.join([str(i) for i in ids]))
         if group_ID:
             conditions.append('GroupID = ?')
             args.append(group_ID)

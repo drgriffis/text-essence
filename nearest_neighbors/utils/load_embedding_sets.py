@@ -74,7 +74,7 @@ if __name__ == '__main__':
     sets = readEmbeddingSets(options.embedding_setsf)
     log.writeln('Loaded {0:,} embedding sets for {1:,} groups.'.format(
         len(sets),
-        len(set([s.group.title for s in sets]))
+        len(set([s.group.short_name for s in sets]))
     ))
 
     log.writeln('Adding to database...')

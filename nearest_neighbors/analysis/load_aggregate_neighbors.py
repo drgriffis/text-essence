@@ -16,7 +16,7 @@ def loadAggregateNeighbors(group_name, src, trg, config, db, k=10, neighbor_type
 
     # get source and target EmbeddingSet objects
     source_set = db.getOrCreateEmbeddingSet(name=src, group_name=group_name)
-    source_set = db.getOrCreateEmbeddingSet(name=trg, group_name=group_name)
+    target_set = db.getOrCreateEmbeddingSet(name=trg, group_name=group_name)
 
     if neighbor_type is None: neighbor_type = EmbeddingType.ENTITY
 
