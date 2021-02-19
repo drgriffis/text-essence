@@ -1,3 +1,25 @@
+class EmbeddingSetGroup:
+    ID = None
+    short_name = None
+    display_title = None
+
+    def __init__(self, short_name, display_title=None, ID=None):
+        self.ID = ID
+        self.short_name = short_name
+        self.display_title = display_title
+
+class EmbeddingSet:
+    ID = None
+    group = None
+    name = None
+    ordering = None
+
+    def __init__(self, group, name, ordering, ID=None):
+        self.ID = ID
+        self.group = group
+        self.name = name
+        self.ordering = ordering
+
 class EntityOverlapAnalysis:
     source = None
     target = None
@@ -63,6 +85,14 @@ class EntityTerm:
         self.entity_key = entity_key
         self.term = term
         self.preferred = preferred
+
+class EntityDefinition:
+    entity_key = None
+    definition = None
+
+    def __init__(self, entity_key, definition):
+        self.entity_key = entity_key
+        self.definition = definition
 
 class AggregatePairwiseSimilarity:
     source = None

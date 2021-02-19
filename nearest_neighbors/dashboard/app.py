@@ -17,10 +17,37 @@ config.read('config.ini')
 @app.route('/')
 def landingPage():
     return send_from_directory('diachronic-concept-viewer/public', 'index.html')
-
+        
 @app.route('/<path:path>')
 def staticFiles(path):
     return send_from_directory('diachronic-concept-viewer/public', path)
+
+@app.route('/visualization')
+def getVisualizationData():
+    vis_path = os.path.join(os.path.dirname(__file__), "static/visualization.json")
+    if not os.path.exists(vis_path):
+        return app.response_class(
+            response="The dataset does not exist", status=404)
+    with open(vis_path, "r") as file:
+        return app.response_class(
+            response=file.read(),
+            status=200,
+            mimetype='application/json'
+        )
+
+@app.route('/entities')
+def listAllEntities():
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+    
+    rows = db.selectAllPreferredEntityNamesWithNeighbors()
+    unique_ids = set()
+    result = []
+    for row in rows:
+        if row.entity_key in unique_ids: continue
+        result.append({"id": row.entity_key, "name": row.term})
+        unique_ids.add(row.entity_key)
+    
+    return jsonify(result)
 
 @app.route('/showchanges', methods=['POST'])
 @app.route('/showchanges/<src>/<trg>/<filter_set>/<at_k>', methods=['GET', 'POST'])
@@ -132,8 +159,12 @@ def info(query_key=None):
         high_confidence_threshold=hc_threshold
     )
 
-    ## (3) get the terms for the entity
+    ## (3) get the terms and definitions for the entity
     term_list, preferred_term = getTerms(
+        db,
+        query_key
+    )
+    definition_list = getDefinitions(
         db,
         query_key
     )
@@ -159,27 +190,29 @@ def info(query_key=None):
         else:
             cwds.append(None)
 
-    entity_change_analysis_base64 = packaging.renderImage(
-        visualization.entityChangeAnalysis,
-        args=(corpora, cwds),
-        kwargs={'figsize': (11,3), 'font_size': 14}
-    )
+    if any(cwds):
+        entity_change_analysis_base64 = packaging.renderImage(
+            visualization.entityChangeAnalysis,
+            args=(corpora, cwds),
+            kwargs={'figsize': (11,3), 'font_size': 14}
+        )
 
-    confidence_analysis_base64 = packaging.renderImage(
-        visualization.internalConfidenceAnalysis,
-        args=(corpora, [confidences.get(c, None) for c in corpora], hc_threshold),
-        kwargs={'figsize': (6,2), 'font_size': 14}
-    )
-
-    return render_template(
-        'info.html',
-        query_key=query_key,
-        preferred_term=preferred_term,
-        all_terms=sorted(term_list),
-        tables=tables,
-        entity_change_analysis_base64=entity_change_analysis_base64,
-        confidence_analysis_base64=confidence_analysis_base64
-    )
+    return jsonify({
+        "id": query_key,
+        "name": preferred_term,
+        "definitions": sorted(definition_list),
+        "confidences": {i: confidences.get(c, None) for i, c in enumerate(corpora)},
+        "otherTerms": sorted(term_list),
+        "frameDescriptions": {
+            i: ("Confidence: {:.3f}".format(confidences[c])
+                if c in confidences else "")
+            for i, c in enumerate(corpora)},
+        "neighbors": {i: [
+            {"id": n["NeighborKey"],
+             "name": n["NeighborString"],
+             "distance": float(n["Distance"])} for n in tables[i]["Rows"]
+        ] for i, c in enumerate(corpora)}
+    })
 
 
 @app.route('/_get_entity_info'):
@@ -357,24 +390,29 @@ def pairwise(query=None, target=None):
         paired_tables.append(query_tables[i])
         paired_tables.append(target_tables[i])
 
-    ## (5) draw the pairwise similarity graph
-    pairwise_similarity_analysis_base64 = packaging.renderImage(
-        visualization.pairwiseSimilarityAnalysis,
-        args=(corpora, means, stds),
-        kwargs={'figsize': (13,3), 'font_size': 14}
-    )
-
-    return render_template(
-        'pairwise.html',
-        query=query,
-        query_preferred_term=query_preferred_term,
-        query_terms=sorted(query_term_list),
-        target=target,
-        target_preferred_term=target_preferred_term,
-        target_terms=sorted(target_term_list),
-        paired_tables=paired_tables,
-        pairwise_similarity_analysis_base64=pairwise_similarity_analysis_base64
-    )
+    return jsonify({
+        "firstName": query_preferred_term,
+        "secondName": target_preferred_term,
+        "similarities": {
+            i: {
+                "label": label,
+                "meanSimilarity": means[i],
+                "stdSimilarity": stds[i],
+                "firstConfidence": float(query_tables[i]["Confidence"]),
+                "secondConfidence": float(target_tables[i]["Confidence"]),
+                "firstNeighbors": [
+                    {"id": n["NeighborKey"],
+                    "name": n["NeighborString"],
+                    "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
+                ],
+                "secondNeighbors": [
+                    {"id": n["NeighborKey"],
+                    "name": n["NeighborString"],
+                    "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
+                ],
+            } for i, label in enumerate(corpora)
+        }
+    })
 
 
 
@@ -451,3 +489,12 @@ def getTerms(db, query_key):
         else:
             term_list.append(term.term)
     return term_list, preferred_term
+
+def getDefinitions(db, query_key):
+    all_definitions = db.selectFromEntityDefinitions(
+        query_key
+    )
+    return [
+        defn.definition
+            for defn in all_definitions
+    ]

@@ -328,3 +328,18 @@ distribute_JET:
 run_dashboard:
 	@export FLASK_APP=nearest_neighbors/dashboard/app.py; \
 	${PY} -m flask run
+
+load_definitions:
+	@${PY} -m nearest_neighbors.utils.load_definitions \
+		-d ../data/SNOMEDCT_US__DEFs__2017AB.csv \
+		-c config.ini \
+		-l ../data/load_definitions.log
+
+visualization:
+	@${PY} -m nearest_neighbors.calculation.prepare_visualization \
+		-i "../data/Full Embedding Sets" \
+		-b "../data/SNOMEDCT_US__groups__2019AB.csv" \
+		-o "nearest_neighbors/dashboard/static/visualization.json" \
+		-f "Chemicals & Drugs,Disorders,Procedures,Physiology,Anatomy,Activities & Behaviors,Devices,Genes & Molecular Sequences,Phenomena,Occupations" \
+		-c config.ini \
+		-l ../data/prepare_visualization.log

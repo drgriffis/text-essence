@@ -8,14 +8,12 @@ import codecs
 import pyemblib
 
 class EmbeddingReplicates:
-    def __init__(self, ID, src_config, lazy=True):
+    def __init__(self, ID, file_pattern, embedding_format, lazy=True):
         self.ID = ID
 
         # detect number of replicates
-        self._embedfs = glob.glob(
-            src_config['ReplicateTemplate'].format(REPL='*')
-        )
-        self._mode = src_config['EmbeddingFormat']
+        self._embedfs = glob.glob(file_pattern)
+        self._mode = embedding_format
         self._embedf_index = 0
 
         self._lazy = True
