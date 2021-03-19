@@ -675,6 +675,8 @@ class EmbeddingNeighborhoodDatabase:
             EmbeddingSets
         WHERE
             {0}
+        ORDER BY
+            Ordering
         '''
 
         conditions, args = [], []
@@ -723,6 +725,10 @@ class EmbeddingNeighborhoodDatabase:
     def selectFromEntityOverlapAnalysis(self, src, trg, filter_set, at_k,
             source_confidence_threshold=None, target_confidence_threshold=None,
             order_by='ConfidenceWeightedDelta', limit=10, entity_key=None):
+        if type(src) is EmbeddingSet:
+            src = src.ID
+        if type(trg) is EmbeddingSet:
+            trg = trg.ID
 
         base_query = '''
         SELECT
@@ -802,12 +808,13 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.execute(query, args)
         raw_rows = list(self._cursor)
 
-        embedding_set_IDs = set()
-        for row in raw_rows:
-            embedding_set_IDs.add(row[0])
-            embedding_set_IDs.add(row[1])
-        embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
-        embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
+        if len(raw_rows) > 0:
+            embedding_set_IDs = set()
+            for row in raw_rows:
+                embedding_set_IDs.add(row[0])
+                embedding_set_IDs.add(row[1])
+            embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
+            embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
 
         for row in raw_rows:
             (
@@ -838,6 +845,9 @@ class EmbeddingNeighborhoodDatabase:
 
 
     def selectFromInternalConfidence(self, src=None, at_k=None, key=None):
+        if type(src) is EmbeddingSet:
+            src = src.ID
+
         query = '''
         SELECT
             *
@@ -875,7 +885,7 @@ class EmbeddingNeighborhoodDatabase:
         embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
         embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
 
-        for row in self._cursor:
+        for row in raw_rows:
             (
                 source_ID,
                 at_k,
@@ -893,6 +903,10 @@ class EmbeddingNeighborhoodDatabase:
 
     def selectFromAggregateNearestNeighbors(self, src, trg, filter_set, key,
             neighbor_type=EmbeddingType.ENTITY, limit=10):
+        if type(src) is EmbeddingSet:
+            src = src.ID
+        if type(trg) is EmbeddingSet:
+            trg = trg.ID
 
         query = '''
         SELECT
@@ -948,7 +962,7 @@ class EmbeddingNeighborhoodDatabase:
         embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
         embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
 
-        for row in self._cursor:
+        for row in raw_rows:
             (
                 source_ID,
                 target_ID,
@@ -1160,6 +1174,9 @@ class EmbeddingNeighborhoodDatabase:
 
 
     def selectFromAggregatePairwiseSimilarity(self, query_key, target, src=None):
+        if (not src is None) and type(src) is EmbeddingSet:
+            src = src.ID
+
         query = '''
         SELECT
             *

@@ -137,21 +137,23 @@ def info(query_key=None):
     neighbor_type = EmbeddingType.parse(neighbor_type)
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
-    corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
+    #corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
     hc_threshold = float(config['PairedNeighborhoodAnalysis']['HighConfidenceThreshold'])
     num_neighbors = int(config['PairedNeighborhoodAnalysis']['NumNeighborsToShow'])
+
+    embedding_sets = list(db.selectFromEmbeddingSets(group_ID=1))
 
     ## (1) get its confidence history
     confidences = getConfidences(
         db,
-        corpora,
+        embedding_sets,
         query_key
     )
 
     ## (2) get the nearest neighbors
     tables = getNeighborTables(
         db,
-        corpora,
+        embedding_sets,
         query_key,
         neighbor_type,
         confidences,
@@ -171,10 +173,10 @@ def info(query_key=None):
 
     ## (4) get its change history
     cwds = []
-    for i in range(len(corpora)-1):
-        change_src = corpora[i]
-        change_trg = corpora[i+1]
-        filter_set = '.HC_Union_{0}_{1}'.format(change_src, change_trg)  ## TODO HARD CODED
+    for i in range(len(embedding_sets)-1):
+        change_src = embedding_sets[i]
+        change_trg = embedding_sets[i+1]
+        filter_set = '.HC_Union_{0}_{1}'.format(change_src.name, change_trg.name)  ## TODO HARD CODED
         at_k = 5  ## TODO HARD CODED
 
         rows = db.selectFromEntityOverlapAnalysis(
@@ -193,7 +195,7 @@ def info(query_key=None):
     if any(cwds):
         entity_change_analysis_base64 = packaging.renderImage(
             visualization.entityChangeAnalysis,
-            args=(corpora, cwds),
+            args=(embedding_sets, cwds),
             kwargs={'figsize': (11,3), 'font_size': 14}
         )
 
@@ -201,17 +203,17 @@ def info(query_key=None):
         "id": query_key,
         "name": preferred_term,
         "definitions": sorted(definition_list),
-        "confidences": {i: confidences.get(c, None) for i, c in enumerate(corpora)},
+        "confidences": {i: confidences.get(es.ID, None) for i, es in enumerate(embedding_sets)},
         "otherTerms": sorted(term_list),
         "frameDescriptions": {
-            i: ("Confidence: {:.3f}".format(confidences[c])
-                if c in confidences else "")
-            for i, c in enumerate(corpora)},
+            i: ("Confidence: {:.3f}".format(confidences[es.ID])
+                if es.ID in confidences else "")
+            for i, es in enumerate(embedding_sets)},
         "neighbors": {i: [
             {"id": n["NeighborKey"],
              "name": n["NeighborString"],
              "distance": float(n["Distance"])} for n in tables[i]["Rows"]
-        ] for i, c in enumerate(corpora)}
+        ] for i, es in enumerate(embedding_sets)}
     })
 
 
@@ -403,16 +405,16 @@ def pairwise(query=None, target=None):
 
 
 ## TODO: change to single query
-def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
+def getNeighborTables(db, embedding_sets, query_key, neighbor_type, confidences,
         limit=10, high_confidence_threshold=0.5):
     tables = []
     TABLES_PER_ROW = 3
-    for i in range(len(corpora)):
-        corpus = corpora[i]
-        filter_set='.HC_{0}'.format(corpus)
+    for i in range(len(embedding_sets)):
+        embedding_set = embedding_sets[i]
+        filter_set='.HC_{0}'.format(embedding_set.name)
         rows = db.selectFromAggregateNearestNeighbors(
-            corpus,
-            corpus,
+            embedding_set,
+            embedding_set,
             filter_set,
             query_key,
             neighbor_type=neighbor_type,
@@ -428,7 +430,7 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
                 'Distance': packaging.prettify(row.mean_distance, decimals=3)
             })
 
-        confidence = confidences.get(corpus, None)
+        confidence = confidences.get(embedding_set.ID, None)
         if confidence is None:
             confidence = '--'
             table_class = 'no_data'
@@ -440,7 +442,7 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
             confidence = packaging.prettify(confidence)
 
         tables.append({
-            'Corpus': corpus,
+            'Corpus': embedding_set.name,
             'Confidence': confidence,
             'Class': table_class,
             'Rows': table_rows,
@@ -451,16 +453,16 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
     return tables
 
 ## TODO: change to single query
-def getConfidences(db, corpora, query_key):
+def getConfidences(db, embedding_sets, query_key):
     confidences = {}
-    for corpus in corpora:
+    for embedding_set in embedding_sets:
         rows = db.selectFromInternalConfidence(
-            src=corpus,
+            src=embedding_set,
             at_k=5,
             key=query_key
         )
         for row in rows:
-            confidences[corpus] = row.confidence
+            confidences[embedding_set.ID] = row.confidence
     return confidences
 
 def getTerms(db, query_key):

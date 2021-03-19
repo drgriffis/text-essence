@@ -8,6 +8,11 @@ class EmbeddingSetGroup:
         self.short_name = short_name
         self.display_title = display_title
 
+    def __str__(self):
+        return '<EmbeddingSetGroup  ID: {0}  Short Name: "{1}"  Display Title: "{2}">'.format(
+            self.ID, self.short_name, self.display_title
+        )
+
 class EmbeddingSet:
     ID = None
     group = None
@@ -19,6 +24,11 @@ class EmbeddingSet:
         self.group = group
         self.name = name
         self.ordering = ordering
+
+    def __str__(self):
+        return '<EmbeddingSet  ID: {0}  Group: {1}  Name: "{2}"  Ordering: {3}>'.format(
+            self.ID, self.group, self.name, self.ordering
+        )
 
 class EntityOverlapAnalysis:
     source = None
@@ -55,6 +65,11 @@ class InternalConfidence:
         self.at_k = at_k
         self.key = key
         self.confidence = confidence
+
+    def __str__(self):
+        return '<InternalConfidence  Source: {0}  AtK: {1}  Key: {2}  Confidence: {3}>'.format(
+            self.source, self.at_k, self.key, self.confidence
+        )
 
 class AggregateNearestNeighbor:
     source = None
