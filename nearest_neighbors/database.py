@@ -879,26 +879,27 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.execute(query, args)
         raw_rows = list(self._cursor)
 
-        embedding_set_IDs = set([
-            row[0] for row in raw_rows
-        ])
-        embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
-        embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
+        if len(raw_rows) > 0:
+            embedding_set_IDs = set([
+                row[0] for row in raw_rows
+            ])
+            embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
+            embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
 
-        for row in raw_rows:
-            (
-                source_ID,
-                at_k,
-                entity_key,
-                confidence
-            ) = row
-            ret_obj = InternalConfidence(
-                source=embedding_sets_by_ID[source_ID],
-                at_k=at_k,
-                key=entity_key,
-                confidence=confidence
-            )
-            yield ret_obj
+            for row in raw_rows:
+                (
+                    source_ID,
+                    at_k,
+                    entity_key,
+                    confidence
+                ) = row
+                ret_obj = InternalConfidence(
+                    source=embedding_sets_by_ID[source_ID],
+                    at_k=at_k,
+                    key=entity_key,
+                    confidence=confidence
+                )
+                yield ret_obj
 
 
     def selectFromAggregateNearestNeighbors(self, src, trg, filter_set, key,
@@ -955,35 +956,36 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.execute(query, args)
         raw_rows = list(self._cursor)
 
-        embedding_set_IDs = set()
-        for row in raw_rows:
-            embedding_set_IDs.add(row[0])
-            embedding_set_IDs.add(row[1])
-        embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
-        embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
+        if len(raw_rows) > 0:
+            embedding_set_IDs = set()
+            for row in raw_rows:
+                embedding_set_IDs.add(row[0])
+                embedding_set_IDs.add(row[1])
+            embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
+            embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
 
-        for row in raw_rows:
-            (
-                source_ID,
-                target_ID,
-                filter_set,
-                entity_key,
-                neighbor_key,
-                mean_distance,
-                query_term,
-                neighbor_term
-            ) = row
-            ret_obj = AggregateNearestNeighbor(
-                source=embedding_sets_by_ID[source_ID],
-                target=embedding_sets_by_ID[target_ID],
-                filter_set=filter_set,
-                key=entity_key,
-                string=query_term,
-                neighbor_key=neighbor_key,
-                neighbor_string=neighbor_term,
-                mean_distance=mean_distance
-            )
-            yield ret_obj
+            for row in raw_rows:
+                (
+                    source_ID,
+                    target_ID,
+                    filter_set,
+                    entity_key,
+                    neighbor_key,
+                    mean_distance,
+                    query_term,
+                    neighbor_term
+                ) = row
+                ret_obj = AggregateNearestNeighbor(
+                    source=embedding_sets_by_ID[source_ID],
+                    target=embedding_sets_by_ID[target_ID],
+                    filter_set=filter_set,
+                    key=entity_key,
+                    string=query_term,
+                    neighbor_key=neighbor_key,
+                    neighbor_string=neighbor_term,
+                    mean_distance=mean_distance
+                )
+                yield ret_obj
 
     def selectAllIDsFromAggregateNearestNeighbors(self, src, trg, filter_set,
             neighbor_type=EmbeddingType.ENTITY):
@@ -1202,25 +1204,26 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.execute(query, args)
         raw_rows = list(self._cursor)
 
-        embedding_set_IDs = set([
-            row[0] for row in raw_rows
-        ])
-        embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
-        embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
+        if len(raw_rows) > 0:
+            embedding_set_IDs = set([
+                row[0] for row in raw_rows
+            ])
+            embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
+            embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
 
-        for row in self._cursor:
-            (
-                source_ID,
-                key,
-                neighbor_key,
-                mean_similarity,
-                std_similarity
-            ) = row
-            ret_obj = AggregatePairwiseSimilarity(
-                source=embedding_sets_by_ID[source_ID],
-                key=key,
-                neighbor_key=neighbor_key,
-                mean_similarity=mean_similarity,
-                std_similarity=std_similarity
-            )
-            yield ret_obj
+            for row in raw_rows:
+                (
+                    source_ID,
+                    key,
+                    neighbor_key,
+                    mean_similarity,
+                    std_similarity
+                ) = row
+                ret_obj = AggregatePairwiseSimilarity(
+                    source=embedding_sets_by_ID[source_ID],
+                    key=key,
+                    neighbor_key=neighbor_key,
+                    mean_similarity=mean_similarity,
+                    std_similarity=std_similarity
+                )
+                yield ret_obj
