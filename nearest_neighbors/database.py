@@ -992,6 +992,10 @@ class EmbeddingNeighborhoodDatabase:
         """Selects all neighbor sets for the given source and target corpus.
         Returned objects DO NOT contain query and neighbor string names for
         performance reasons."""
+        if type(src) is EmbeddingSet:
+            src = src.ID
+        if type(trg) is EmbeddingSet:
+            trg = trg.ID
 
         query = '''
         SELECT

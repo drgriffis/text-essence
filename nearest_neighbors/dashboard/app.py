@@ -24,7 +24,7 @@ def staticFiles(path):
 
 @app.route('/visualization')
 def getVisualizationData():
-    vis_path = os.path.join(os.path.dirname(__file__), "static/visualization.json")
+    vis_path = config['Visualization']['OutputFile']
     if not os.path.exists(vis_path):
         return app.response_class(
             response="The dataset does not exist", status=404)

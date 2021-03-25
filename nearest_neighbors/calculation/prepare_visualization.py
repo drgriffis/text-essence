@@ -12,13 +12,14 @@ from . import moving_scatterplot as ms
 
 AT_K = 5
 
-def build_frame(embedding, corpus, db, labels, confidence_threshold=0.0, num_to_plot=None, num_neighbors=10):
+def build_frame(embedding, embedding_set, db, labels, confidence_threshold=0.0, num_to_plot=None, num_neighbors=10):
     """
     Builds a ScatterplotFrame using the given embedding object. 
     
     Args:
         embedding: A pyemblib embedding object
-        corpus: String identifying the corpus in the database
+        embedding_set: An EmbeddingSet object that can be used to retrieve
+            neighbors and confidence values
         db: An EmbeddingNeighborhoodDatabase
         labels: A dictionary mapping entity IDs to string labels 
         confidence_threshold: Filter by confidence
@@ -41,9 +42,9 @@ def build_frame(embedding, corpus, db, labels, confidence_threshold=0.0, num_to_
     
     # Get all nearest neighbors for this corpus
     log.writeln("Getting nearest neighbors...")
-    filter_set='.HC_{0}'.format(corpus)
+    filter_set='.HC_{0}'.format(embedding_set.name)
     neighbor_rows = db.selectAllIDsFromAggregateNearestNeighbors(
-        corpus, corpus, filter_set
+        embedding_set, embedding_set, filter_set
     )
     neighbor_sets = {}
     for row in neighbor_rows:
@@ -64,7 +65,7 @@ def build_frame(embedding, corpus, db, labels, confidence_threshold=0.0, num_to_
 
         # Get confidence for the ID
         confidence_rows = db.selectFromInternalConfidence(
-            src=corpus,
+            src=embedding_set,
             at_k=AT_K,
             key=id_val
         )
@@ -172,8 +173,8 @@ if __name__ == '__main__':
         parser = optparse.OptionParser(usage='Usage: %prog')
         parser.add_option('-i', '--input', dest='input_base',
             help='(required) base path for embeddings')
-        parser.add_option('-o', '--output', dest='output_path',
-            help='(required) path to write JSON visualization file')
+        parser.add_option('-g', '--group', dest='embedding_group',
+            help='(required) group name for embedding sets in the database')
         parser.add_option('-c', '--config', dest='configf',
             default='config.ini')
         parser.add_option('-b', '--labels', dest='labels_file',
@@ -188,7 +189,7 @@ if __name__ == '__main__':
         (options, args) = parser.parse_args()
 
         assert options.input_base, "Input base path required"
-        assert options.output_path, "Output path required"
+        assert options.embedding_group, "Embedding set group required"
         assert options.labels_file, "Labels path required"
         return args, options
 
@@ -196,7 +197,7 @@ if __name__ == '__main__':
     log.start(options.logfile)
     log.writeConfig([
         ('Base path for embeddings', options.input_base),
-        ('Output path', options.output_path),
+        ('Embedding set group', options.embedding_group),
         ('Labels csv file', options.labels_file),
         ('Allowed labels', options.allowed_labels),
         ('Configuration file', options.configf),
@@ -233,6 +234,7 @@ if __name__ == '__main__':
     corpora = analysis_config['CorpusOrdering'].split(',')
     for corpus in corpora:
         log.writeln('Loading embedding for {}...'.format(corpus))
+        emb_set = db.getOrCreateEmbeddingSet(name=corpus, group_name=options.embedding_group)
         emb_path = os.path.join(
             options.input_base,
             visualization_config['EmbeddingFilePattern'].format(CORPUS=corpus))
@@ -241,7 +243,7 @@ if __name__ == '__main__':
                                   errors='replace')
 
         t = log.startTimer('Building frame and running TSNE...')
-        frame = build_frame(embedding, corpus, db, labels,
+        frame = build_frame(embedding, emb_set, db, labels,
                             num_to_plot=int(visualization_config["NumEntitiesPerFrame"]),
                             confidence_threshold=hc_threshold,
                             num_neighbors=num_neighbors)
@@ -254,7 +256,7 @@ if __name__ == '__main__':
     log.writeln('Writing visualization file...')
     write_visualization_file(frames,
                              corpora,
-                             options.output_path,
+                             visualization_config['OutputFile'],
                              "aligned_x", "aligned_y")
     log.writeln('Done.')
     
