@@ -33,18 +33,57 @@ class EmbeddingNeighborhoodDatabase:
         self._connection.close()
 
     def _build(self):
+        ## the EmbeddingSetGroups table stores information about groups of
+        ## embedding sets for analysis (i.e., a group of corpora or other
+        ## embedding sources to be compared together)
+        ## for simplicity, enforce that all groups must have unique titles
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS EmbeddingSetGroups
+        (
+            ID INTEGER PRIMARY KEY NOT NULL,
+            ShortName text NOT NULL,
+            DisplayTitle text,
+            UNIQUE(ShortName)
+        )
+        ''')
+
+        ## the EmbeddingSets table stores information about individual sets of
+        ## embedding replicates for analysis
+        ## for simplicity, require that no two embedding sets within the same
+        ## group can have the same title
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS EmbeddingSets
+        (
+            ID INTEGER PRIMARY KEY NOT NULL,
+            GroupID int NOT NULL,
+            Name text NOT NULL,
+            Ordering int NOT NULL,
+            UNIQUE(GroupID, Name),
+            UNIQUE(GroupID, Ordering),
+            CONSTRAINT FK_GroupID
+                FOREIGN KEY (GroupID)
+                REFERENCES EmbeddingSetGroups(ID)
+        )
+        ''')
+
         ## the EntityOverlapAnalysis table stores outputs from paired
         ## neighborhood analysis
         self._cursor.execute('''
         CREATE TABLE IF NOT EXISTS EntityOverlapAnalysis
         (
-            Source text,
-            Target text,
+            Source int,
+            Target int,
             FilterSet text,
             AtK int,
             EntityKey text,
             ENSimilarity real,
-            UNIQUE(Source, Target, FilterSet, AtK, EntityKey)
+            UNIQUE(Source, Target, FilterSet, AtK, EntityKey),
+            CONSTRAINT FK_Source
+                FOREIGN KEY (Source)
+                REFERENCES EmbeddingSets(ID),
+            CONSTRAINT FK_Target
+                FOREIGN KEY (Target)
+                REFERENCES EmbeddingSets(ID)
         )
         ''')
 
@@ -54,11 +93,14 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.execute('''
         CREATE TABLE IF NOT EXISTS InternalConfidence
         (
-            Source text,
+            Source int,
             AtK int,
             EntityKey text,
             Confidence real,
-            UNIQUE(Source, AtK, EntityKey)
+            UNIQUE(Source, AtK, EntityKey),
+            CONSTRAINT FK_Source
+                FOREIGN KEY (Source)
+                REFERENCES EmbeddingSets(ID)
         )
         ''')
 
@@ -72,12 +114,15 @@ class EmbeddingNeighborhoodDatabase:
         CREATE TABLE IF NOT EXISTS AggregateNearestNeighbors
         (
             ID INTEGER PRIMARY KEY,
-            Source text,
+            Source int,
             EntityKey text,
             NeighborKey text,
             NeighborType int,
             MeanDistance real,
-            UNIQUE(Source, EntityKey, NeighborKey)
+            UNIQUE(Source, EntityKey, NeighborKey),
+            CONSTRAINT FK_Source
+                FOREIGN KEY (Source)
+                REFERENCES EmbeddingSets(ID)
         )
         ''')
 
@@ -90,14 +135,20 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.execute('''
         CREATE TABLE IF NOT EXISTS AggregateNearestNeighborSubsets
         (
-            Source text,
-            Target text,
+            Source int,
+            Target int,
             FilterSet text,
             NeighborID int,
             UNIQUE(Source, Target, FilterSet, NeighborID),
             CONSTRAINT FK_NeighborID
                 FOREIGN KEY (NeighborID)
-                REFERENCES AggregateNearestNeighbors(ID)
+                REFERENCES AggregateNearestNeighbors(ID),
+            CONSTRAINT FK_Source
+                FOREIGN KEY (Source)
+                REFERENCES EmbeddingSets(ID),
+            CONSTRAINT FK_Target
+                FOREIGN KEY (Target)
+                REFERENCES EmbeddingSets(ID)
         )
         ''')
 
@@ -131,12 +182,15 @@ class EmbeddingNeighborhoodDatabase:
         self._cursor.execute('''
         CREATE TABLE IF NOT EXISTS AggregatePairwiseSimilarity
         (
-            Source text,
+            Source int,
             EntityKey text,
             NeighborKey text,
             MeanSimilarity real,
             StdDevSimilarity real,
-            UNIQUE(Source, EntityKey, NeighborKey)
+            UNIQUE(Source, EntityKey, NeighborKey),
+            CONSTRAINT FK_Source
+                FOREIGN KEY (Source)
+                REFERENCES EmbeddingSets(ID)
         )
         ''')
 
@@ -147,7 +201,11 @@ class EmbeddingNeighborhoodDatabase:
         if (not type(objects) is list) and (not type(objects) is tuple):
             objects = [objects]
 
-        if type(objects[0]) is EntityOverlapAnalysis:
+        if type(objects[0]) is EmbeddingSetGroup:
+            self.insertOrUpdateIntoEmbeddingSetGroups(objects, *args, **kwargs)
+        elif type(objects[0]) is EmbeddingSet:
+            self.insertOrUpdateIntoEmbeddingSets(objects, *args, **kwargs)
+        elif type(objects[0]) is EntityOverlapAnalysis:
             self.insertOrUpdateIntoEntityOverlapAnalysis(objects, *args, **kwargs)
         elif type(objects[0]) is InternalConfidence:
             self.insertOrUpdateIntoInternalConfidence(objects, *args, **kwargs)
@@ -160,13 +218,152 @@ class EmbeddingNeighborhoodDatabase:
         elif type(objects[0]) is AggregatePairwiseSimilarity:
             self.insertOrUpdateIntoAggregatePairwiseSimilarity(objects, *args, **kwargs)
 
+    def insertOrUpdateIntoEmbeddingSetGroups(self, groups):
+        if (not type(groups) is list) and (not type(groups) is tuple):
+            groups = [groups]
+
+        new_rows, existing_rows = [], []
+        for group in groups:
+            if group.ID is None:
+                new_rows.append(
+                    (
+                        (
+                            group.short_name,
+                            group.display_title
+                        ), # row to add
+                        group                # pointer back to the group to set its ID
+                    )
+                )
+            else:
+                existing_rows.append(
+                    (group.ID, group.short_name, group.display_title)
+                )
+
+        if len(new_rows) > 0:
+            for (row, group) in new_rows:
+                self._cursor.execute(
+                    '''
+                    INSERT INTO
+                        EmbeddingSetGroups
+                        (
+                            ShortName,
+                            DisplayTitle
+                        )
+                    VALUES (
+                        ?, ?
+                    )
+                    ''',
+                    row
+                )
+
+                # set the ID of the group to the ID of the new row
+                group.ID = self._cursor.lastrowid
+
+        if len(existing_rows) > 0:
+            self._cursor.executemany(
+                '''
+                REPLACE INTO
+                    EmbeddingSetGroups
+                VALUES (
+                    ?, ?, ?
+                )
+                ''',
+                existing_rows
+            )
+
+        self._connection.commit()
+
+    def insertOrUpdateIntoEmbeddingSets(self, embedding_sets):
+        if (not type(embedding_sets) is list) and (not type(embedding_sets) is tuple):
+            embedding_sets = [embedding_sets]
+
+        # rely on uniqueness of shortname to make sure all embedding set
+        # groups exist
+        groups_by_short_name = {}
+        for e_set in embedding_sets:
+            groups_by_short_name[e_set.group.short_name] = e_set.group
+        self.insertOrUpdateIntoEmbeddingSetGroups(list(groups_by_short_name.values()))
+
+        new_rows, existing_rows = [], []
+        for e_set in embedding_sets:
+            if e_set.ID is None:
+                new_rows.append(
+                    (
+                        # row to add
+                        (e_set.group.ID, e_set.name, e_set.ordering),
+                        # pointer back to the set to set its ID
+                        e_set
+                    )
+                )
+            else:
+                existing_rows.append(
+                    (e_set.ID, e_set.group.ID, e_set.name, e_set.ordering),
+                )
+
+        if len(new_rows) > 0:
+            for (row, e_set) in new_rows:
+                self._cursor.execute(
+                    '''
+                    INSERT INTO
+                        EmbeddingSets
+                        (
+                            GroupID,
+                            Name,
+                            Ordering
+                        )
+                    VALUES (
+                        ?, ?, ?
+                    )
+                    ''',
+                    row
+                )
+
+                # set the ID of the group to the ID of the new row
+                e_set.ID = self._cursor.lastrowid
+
+        if len(existing_rows) > 0:
+            self._cursor.executemany(
+                '''
+                REPLACE INTO
+                    EmbeddingSets
+                VALUES (
+                    ?, ?, ?, ?
+                )
+                ''',
+                existing_rows
+            )
+
+        self._connection.commit()
+
+    def _saveLinkedEmbeddingSets(self, objects, getter):
+        # rely on uniqueness of group title + set name to make sure all
+        # embedding sets exist
+        sets_by_identifier = {}
+        for obj in objects:
+            e_set = getter(obj)
+            e_set_identifier = '{0}_{1}'.format(
+                e_set.group.short_name,
+                e_set.name
+            )
+            sets_by_identifier[e_set_identifier] = e_set
+        self.insertOrUpdateIntoEmbeddingSets(list(sets_by_identifier.values()))
+        
+
     def insertOrUpdateIntoEntityOverlapAnalysis(self, overlaps):
         if (not type(overlaps) is list) and (not type(overlaps) is tuple):
             overlaps = [overlaps]
+
+        # first flush source and target embedding sets to the DB
+        self._saveLinkedEmbeddingSets(overlaps, lambda o: o.source)
+        self._saveLinkedEmbeddingSets(overlaps, lambda o: o.target)
             
         rows = [
             (
-                o.source, o.target, o.filter_set, o.at_k, o.key,
+                o.source.ID,
+                o.target.ID,
+                o.filter_set,
+                o.at_k,
+                o.key,
                 o.EN_similarity
             )
                 for o in overlaps
@@ -186,10 +383,16 @@ class EmbeddingNeighborhoodDatabase:
     def insertOrUpdateIntoInternalConfidence(self, confidences):
         if (not type(confidences) is list) and (not type(confidences) is tuple):
             confidences = [confidences]
+
+        # first flush source embedding sets to the DB
+        self._saveLinkedEmbeddingSets(confidences, lambda c: c.source)
             
         rows = [
             (
-                c.source, c.at_k, c.key, c.confidence
+                c.source.ID,
+                c.at_k,
+                c.key,
+                c.confidence
             )
                 for c in confidences
         ]
@@ -208,6 +411,10 @@ class EmbeddingNeighborhoodDatabase:
     def insertOrUpdateIntoAggregateNearestNeighbors(self, nbrs, neighbor_type=EmbeddingType.ENTITY):
         if (not type(nbrs) is list) and (not type(nbrs) is tuple):
             nbrs = [nbrs]
+
+        # first flush source and target embedding sets to the DB
+        self._saveLinkedEmbeddingSets(nbrs, lambda n: n.source)
+        self._saveLinkedEmbeddingSets(nbrs, lambda n: n.target)
         
         ## since each neighbor relationship may or may not need to be added to
         ## the AggregateNearestNeighbors table as well as to
@@ -223,14 +430,25 @@ class EmbeddingNeighborhoodDatabase:
                 AND NeighborKey=?
                 AND NeighborType=?
             '''
-            args = [nbr.source, nbr.key, nbr.neighbor_key, neighbor_type]
+            args = [
+                nbr.source.ID,
+                nbr.key,
+                nbr.neighbor_key,
+                neighbor_type
+            ]
             self._cursor.execute(query, args)
 
             nbr_info = self._cursor.fetchone()
 
             ## (2.1) if it isn't, add it to AggregateNearestNeighbors
             if nbr_info is None:
-                row = (nbr.source, nbr.key, nbr.neighbor_key, neighbor_type, nbr.mean_distance)
+                row = (
+                    nbr.source.ID,
+                    nbr.key,
+                    nbr.neighbor_key,
+                    neighbor_type,
+                    nbr.mean_distance
+                )
                 self._cursor.execute(
                     '''
                     INSERT INTO
@@ -266,7 +484,12 @@ class EmbeddingNeighborhoodDatabase:
 
             ## (3) finally, add the source/target relationship to
             ##     AggregateNearestNeighborSubsets
-            row = (nbr.source, nbr.target, nbr.filter_set, nbr_ID)
+            row = (
+                nbr.source.ID,
+                nbr.target.ID,
+                nbr.filter_set,
+                nbr_ID
+            )
             self._cursor.execute(
                 '''
                 REPLACE INTO AggregateNearestNeighborSubsets VALUES (
@@ -284,7 +507,9 @@ class EmbeddingNeighborhoodDatabase:
 
         rows = [
             (
-                et.entity_key, et.term, et.preferred
+                et.entity_key,
+                et.term,
+                et.preferred
             )
                 for et in ent_terms
         ]
@@ -306,7 +531,8 @@ class EmbeddingNeighborhoodDatabase:
 
         rows = [
             (
-                ed.entity_key, ed.definition
+                ed.entity_key,
+                ed.definition
             )
                 for ed in ent_defns
         ]
@@ -326,9 +552,14 @@ class EmbeddingNeighborhoodDatabase:
         if (not type(sims) is list) and (not type(sims) is tuple):
             sims = [sims]
 
+        # first make sure linked embedding sets are saved to the DB
+        self._saveLinkedEmbeddingSets(sims, lambda s: s.source)
+
         rows = [
             (
-                s.source, s.key, s.neighbor_key,
+                s.source.ID,
+                s.key,
+                s.neighbor_key,
                 float(s.mean_similarity),
                 float(s.std_similarity)
             )
@@ -347,9 +578,157 @@ class EmbeddingNeighborhoodDatabase:
         self._connection.commit()
 
 
+    def getOrCreateEmbeddingSetGroup(self, short_name):
+        groups = list(self.selectFromEmbeddingSetGroups(short_name=short_name))
+        if len(groups) == 0:
+            group = EmbeddingSetGroup(
+                short_name=short_name
+            )
+            self.insertOrUpdate(group)
+        else:
+            group = groups[0]
+        return group
+
+    def getOrCreateEmbeddingSet(self, name, group_ID=None, group_name=None):
+        if group_ID is None and group_name is None:
+            raise TypeError("getOrCreateEmbeddingSet() must be called with either group_ID or group_name keyword argument")
+
+        if group_ID:
+            group = list(self.selectFromEmbeddingSetGroups(ID=group_ID))[0]
+        else:
+            group = self.getOrCreateEmbeddingSetGroup(short_name=group_name)
+
+        sets = list(self.selectFromEmbeddingSets(group_ID=group.ID, name=name))
+        if len(sets) == 0:
+            # count the number of existing embedding sets within this group
+            other_sets = list(self.selectFromEmbeddingSets(group_ID=group.ID))
+            # and append the new set at the end
+            source_set = EmbeddingSet(
+                group=group,
+                name=name,
+                ordering=len(other_sets)+1
+            )
+            self.insertOrUpdate(e_set)
+        else:
+            e_set = sets[0]
+
+        return e_set
+
+
+    def selectFromEmbeddingSetGroups(self, ids=None, short_name=None):
+        if ids:
+            try:
+                _ = iter(ids)
+                ids = list(ids)
+            except TypeError:
+                ids = [ids]
+
+        base_query = '''
+        SELECT
+            *
+        FROM
+            EmbeddingSetGroups
+        WHERE
+            {0}
+        '''
+
+        conditions, args = [], []
+
+        if ids:
+            conditions.append('ID IN (?)')
+            args.append(','.join([str(i) for i in ids]))
+        if short_name:
+            conditions.append('ShortName = ?')
+            args.append(short_name)
+
+        query = base_query.format(
+            ' AND '.join(conditions)
+        )
+
+        self._cursor.execute(query, args)
+        for row in self._cursor:
+            (
+                ID,
+                short_name,
+                display_title
+            ) = row
+            ret_obj = EmbeddingSetGroup(
+                ID=ID,
+                short_name=short_name,
+                display_title=display_title
+            )
+            yield ret_obj
+
+
+    def selectFromEmbeddingSets(self, ids=None, group_ID=None, name=None):
+        if ids:
+            try:
+                _ = iter(ids)
+                ids = list(ids)
+            except TypeError:
+                ids = [ids]
+
+        base_query = '''
+        SELECT
+            *
+        FROM
+            EmbeddingSets
+        WHERE
+            {0}
+        ORDER BY
+            Ordering
+        '''
+
+        conditions, args = [], []
+
+        if ids:
+            conditions.append('ID IN (?)')
+            args.append(','.join([str(i) for i in ids]))
+        if group_ID:
+            conditions.append('GroupID = ?')
+            args.append(group_ID)
+        if name:
+            conditions.append('Name = ?')
+            args.append(name)
+
+        query = base_query.format(
+            ' AND '.join(conditions)
+        )
+
+        self._cursor.execute(query, args)
+        raw_rows = list(self._cursor)
+
+        # fetch the associated group objects
+        group_IDs = set([
+            row[1] for row in raw_rows
+        ])
+        groups = self.selectFromEmbeddingSetGroups(ids=group_IDs)
+        groups_by_ID = { group.ID: group for group in groups }
+
+        # instantiate the embedding set objects
+        for row in raw_rows:
+            (
+                ID,
+                groupID,
+                name,
+                ordering
+            ) = row
+            ret_obj = EmbeddingSet(
+                ID=ID,
+                group=groups_by_ID[groupID],
+                name=name,
+                ordering=ordering
+            )
+            yield ret_obj
+
+
     def selectFromEntityOverlapAnalysis(self, src, trg, filter_set, at_k,
             source_confidence_threshold=None, target_confidence_threshold=None,
             order_by='ConfidenceWeightedDelta', limit=10, entity_key=None):
+        if type(src) is EmbeddingSet:
+            src = src.ID
+        if type(trg) is EmbeddingSet:
+            trg = trg.ID
 
         base_query = '''
         SELECT
@@ -427,10 +806,20 @@ class EmbeddingNeighborhoodDatabase:
         )
 
         self._cursor.execute(query, args)
-        for row in self._cursor:
+        raw_rows = list(self._cursor)
+
+        if len(raw_rows) > 0:
+            embedding_set_IDs = set()
+            for row in raw_rows:
+                embedding_set_IDs.add(row[0])
+                embedding_set_IDs.add(row[1])
+            embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
+            embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
+
+        for row in raw_rows:
             (
-                source,
-                target,
+                source_ID,
+                target_ID,
                 filter_set,
                 at_k,
                 key,
@@ -441,8 +830,8 @@ class EmbeddingNeighborhoodDatabase:
                 preferred_term
             ) = row
             ret_obj = EntityOverlapAnalysis(
-                source=source,
-                target=target,
+                source=embedding_sets_by_ID[source_ID],
+                target=embedding_sets_by_ID[target_ID],
                 filter_set=filter_set,
                 at_k=at_k,
                 key=key,
@@ -456,6 +845,9 @@ class EmbeddingNeighborhoodDatabase:
 
 
     def selectFromInternalConfidence(self, src=None, at_k=None, key=None):
+        if type(src) is EmbeddingSet:
+            src = src.ID
+
         query = '''
         SELECT
             *
@@ -485,15 +877,23 @@ class EmbeddingNeighborhoodDatabase:
             query = query.format('', '')
 
         self._cursor.execute(query, args)
-        for row in self._cursor:
+        raw_rows = list(self._cursor)
+
+        embedding_set_IDs = set([
+            row[0] for row in raw_rows
+        ])
+        embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
+        embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
+
+        for row in raw_rows:
             (
-                source,
+                source_ID,
                 at_k,
                 entity_key,
                 confidence
             ) = row
             ret_obj = InternalConfidence(
-                source=source,
+                source=embedding_sets_by_ID[source_ID],
                 at_k=at_k,
                 key=entity_key,
                 confidence=confidence
@@ -503,6 +903,10 @@ class EmbeddingNeighborhoodDatabase:
 
     def selectFromAggregateNearestNeighbors(self, src, trg, filter_set, key,
             neighbor_type=EmbeddingType.ENTITY, limit=10):
+        if type(src) is EmbeddingSet:
+            src = src.ID
+        if type(trg) is EmbeddingSet:
+            trg = trg.ID
 
         query = '''
         SELECT
@@ -549,10 +953,19 @@ class EmbeddingNeighborhoodDatabase:
         ]
 
         self._cursor.execute(query, args)
-        for row in self._cursor:
+        raw_rows = list(self._cursor)
+
+        embedding_set_IDs = set()
+        for row in raw_rows:
+            embedding_set_IDs.add(row[0])
+            embedding_set_IDs.add(row[1])
+        embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
+        embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
+
+        for row in raw_rows:
             (
-                source,
-                target,
+                source_ID,
+                target_ID,
                 filter_set,
                 entity_key,
                 neighbor_key,
@@ -561,8 +974,8 @@ class EmbeddingNeighborhoodDatabase:
                 neighbor_term
             ) = row
             ret_obj = AggregateNearestNeighbor(
-                source=source,
-                target=target,
+                source=embedding_sets_by_ID[source_ID],
+                target=embedding_sets_by_ID[target_ID],
                 filter_set=filter_set,
                 key=entity_key,
                 string=query_term,
@@ -761,6 +1174,9 @@ class EmbeddingNeighborhoodDatabase:
 
 
     def selectFromAggregatePairwiseSimilarity(self, query_key, target, src=None):
+        if (not src is None) and type(src) is EmbeddingSet:
+            src = src.ID
+
         query = '''
         SELECT
             *
@@ -784,16 +1200,24 @@ class EmbeddingNeighborhoodDatabase:
             args.append(src)
 
         self._cursor.execute(query, args)
+        raw_rows = list(self._cursor)
+
+        embedding_set_IDs = set([
+            row[0] for row in raw_rows
+        ])
+        embedding_sets = self.selectFromEmbeddingSets(ids=embedding_set_IDs)
+        embedding_sets_by_ID = { e_set.ID: e_set for e_set in embedding_sets }
+
         for row in self._cursor:
             (
-                source,
+                source_ID,
                 key,
                 neighbor_key,
                 mean_similarity,
                 std_similarity
             ) = row
             ret_obj = AggregatePairwiseSimilarity(
-                source=source,
+                source=embedding_sets_by_ID[source_ID],
                 key=key,
                 neighbor_key=neighbor_key,
                 mean_similarity=mean_similarity,
