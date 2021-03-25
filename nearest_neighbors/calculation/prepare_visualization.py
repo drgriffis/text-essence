@@ -172,8 +172,6 @@ if __name__ == '__main__':
         parser = optparse.OptionParser(usage='Usage: %prog')
         parser.add_option('-i', '--input', dest='input_base',
             help='(required) base path for embeddings')
-        parser.add_option('-o', '--output', dest='output_path',
-            help='(required) path to write JSON visualization file')
         parser.add_option('-c', '--config', dest='configf',
             default='config.ini')
         parser.add_option('-b', '--labels', dest='labels_file',
@@ -188,7 +186,6 @@ if __name__ == '__main__':
         (options, args) = parser.parse_args()
 
         assert options.input_base, "Input base path required"
-        assert options.output_path, "Output path required"
         assert options.labels_file, "Labels path required"
         return args, options
 
@@ -196,7 +193,6 @@ if __name__ == '__main__':
     log.start(options.logfile)
     log.writeConfig([
         ('Base path for embeddings', options.input_base),
-        ('Output path', options.output_path),
         ('Labels csv file', options.labels_file),
         ('Allowed labels', options.allowed_labels),
         ('Configuration file', options.configf),
@@ -254,7 +250,7 @@ if __name__ == '__main__':
     log.writeln('Writing visualization file...')
     write_visualization_file(frames,
                              corpora,
-                             options.output_path,
+                             visualization_config['OutputFile'],
                              "aligned_x", "aligned_y")
     log.writeln('Done.')
     

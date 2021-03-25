@@ -339,7 +339,6 @@ visualization:
 	@${PY} -m nearest_neighbors.calculation.prepare_visualization \
 		-i "../data/Full Embedding Sets" \
 		-b "../data/SNOMEDCT_US__groups__2019AB.csv" \
-		-o "nearest_neighbors/dashboard/static/visualization.json" \
 		-f "Chemicals & Drugs,Disorders,Procedures,Physiology,Anatomy,Activities & Behaviors,Devices,Genes & Molecular Sequences,Phenomena,Occupations" \
 		-c config.ini \
 		-l ../data/prepare_visualization.log
