@@ -338,6 +338,7 @@ load_definitions:
 visualization:
 	@${PY} -m nearest_neighbors.calculation.prepare_visualization \
 		-i "../data/Full Embedding Sets" \
+		-g "CORD-19" \
 		-b "../data/SNOMEDCT_US__groups__2019AB.csv" \
 		-f "Chemicals & Drugs,Disorders,Procedures,Physiology,Anatomy,Activities & Behaviors,Devices,Genes & Molecular Sequences,Phenomena,Occupations" \
 		-c config.ini \
