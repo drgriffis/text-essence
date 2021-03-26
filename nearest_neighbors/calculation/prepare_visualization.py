@@ -49,6 +49,7 @@ def build_frame(embedding, embedding_set, db, labels, confidence_threshold=0.0, 
     neighbor_sets = {}
     for row in neighbor_rows:
         if len(neighbor_sets.get(row.key, [])) >= num_neighbors: continue
+        if row.neighbor_key not in labels: continue
         neighbor_sets.setdefault(row.key, []).append(row.neighbor_key)
     log.writeln("Neighbors for {} IDs".format(len(neighbor_sets)))
 
@@ -163,7 +164,8 @@ def write_visualization_file(frames, corpora, out_path, x_key, y_key):
     with open(out_path, "w") as file:
         json.dump(ms.round_floats({
             "data": data,
-            "frameLabels": corpora
+            "frameLabels": corpora,
+            "previewMode": "neighborSimilarity"
         }, 4), file)
         
 

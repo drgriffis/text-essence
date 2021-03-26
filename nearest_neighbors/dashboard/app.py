@@ -369,36 +369,29 @@ def pairwise(query=None, target=None):
         limit=num_neighbors,
     )
 
-    # placeholder to enable successful completion of call
     return jsonify({
-        "firstName": query_preferred_term,
-        "secondName": target_preferred_term,
-        "similarities": {}
+       "firstName": query_preferred_term,
+       "secondName": target_preferred_term,
+       "similarities": [
+           {
+               "label": emb_set.name,
+               "meanSimilarity": means.get(emb_set.ID, None),
+               "stdSimilarity": stds.get(emb_set.ID, None),
+               "firstConfidence": float(query_tables[i]["Confidence"]),
+               "secondConfidence": float(target_tables[i]["Confidence"]),
+               "firstNeighbors": [
+                   {"id": n["NeighborKey"],
+                   "name": n["NeighborString"],
+                   "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
+               ],
+               "secondNeighbors": [
+                   {"id": n["NeighborKey"],
+                   "name": n["NeighborString"],
+                   "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
+               ],
+           } for i, emb_set in enumerate(embedding_sets)
+       ]
     })
-
-    #return jsonify({
-    #    "firstName": query_preferred_term,
-    #    "secondName": target_preferred_term,
-    #    "similarities": {
-    #        i: {
-    #            "label": label,
-    #            "meanSimilarity": means[i],
-    #            "stdSimilarity": stds[i],
-    #            "firstConfidence": float(query_tables[i]["Confidence"]),
-    #            "secondConfidence": float(target_tables[i]["Confidence"]),
-    #            "firstNeighbors": [
-    #                {"id": n["NeighborKey"],
-    #                "name": n["NeighborString"],
-    #                "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
-    #            ],
-    #            "secondNeighbors": [
-    #                {"id": n["NeighborKey"],
-    #                "name": n["NeighborString"],
-    #                "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
-    #            ],
-    #        } for i, label in enumerate(corpora)
-    #    }
-    #})
 
 
 
