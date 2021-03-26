@@ -682,8 +682,11 @@ class EmbeddingNeighborhoodDatabase:
         conditions, args = [], []
 
         if ids:
-            conditions.append('ID IN (?)')
-            args.append(','.join([str(i) for i in ids]))
+            # this isn't great, but it appears that argument binding to a list
+            # doesn't work with sqlite3, so this is the hack
+            conditions.append('ID IN (%s)' % (
+                ','.join([str(i) for i in ids])
+            ))
         if group_ID:
             conditions.append('GroupID = ?')
             args.append(group_ID)

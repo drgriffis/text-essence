@@ -10,9 +10,6 @@ from ..database import EmbeddingNeighborhoodDatabase
 def calculateAggregatePairwiseSimilarity(group, replicates, query, target, db):
     cos_sims = []
     for these_embeds in replicates:
-        #t_sub = log.startTimer('Calculating similarity in embedding set %d (%s)...' % (i, embedfs[i]))
-        #these_embeds = pyemblib.read(embedfs[i], mode=options.embedding_mode, errors='replace')
-
         query_vec = these_embeds[query]
         target_vec = these_embeds[target]
 
@@ -22,10 +19,8 @@ def calculateAggregatePairwiseSimilarity(group, replicates, query, target, db):
         cos_sim = np.dot(query_vec, target_vec)
         cos_sims.append(cos_sim)
 
-    source_set = db.getOrCreateEmbeddingSet(name=replicates.ID, group_name=group)
-
     sim = AggregatePairwiseSimilarity(
-        source=source_set,
+        source=replicates.source,
         key=query,
         neighbor_key=target,
         mean_similarity=np.mean(cos_sims),
@@ -34,6 +29,57 @@ def calculateAggregatePairwiseSimilarity(group, replicates, query, target, db):
     db.insertOrUpdate(sim)
 
     return sim
+
+
+def getAllAggregatePairwiseSimilarities(group, query, target, config, db, overwrite=False):
+    embedding_sets = list(db.selectFromEmbeddingSets(group_ID=group.ID))
+    sims = {}
+
+    if not overwrite:
+        # find any similarities which have already been calculated
+        rows = list(db.selectFromAggregatePairwiseSimilarity(query, target))
+        for sim in rows:
+            sims[sim.source.name] = sim
+        # check for any which may be reversed (as similarity is symmetric)
+        if len(sims) < len(embedding_sets):
+            rows = list(db.selectFromAggregatePairwiseSimilarity(target, query))
+            for sim in rows:
+                sims[sim.source.name] = sim
+
+    # go through and calculate any that are still missing
+    for emb_set in embedding_sets:
+        if not emb_set.name in sims:
+            emb_set_config = config[emb_set.name]
+            log.writeln('Loading embedding replicates for %s...' % emb_set.name)
+            replicates = nn_io.EmbeddingReplicates(
+                emb_set,
+                emb_set_config['ReplicateTemplate'].format(REPL='*'),
+                emb_set_config['EmbeddingFormat']
+            )
+            log.writeln('Found {0:,} replicates.\n'.format(len(replicates)))
+
+            if not replicates.hasKey(query):
+                log.writeln('{0} replicates missing query key "{1}", skipping'.format(emb_set.name, query))
+            elif not replicates.hasKey(target):
+                log.writeln('{0} replicates missing target key "{1}", skipping'.format(emb_set.name, target))
+            else:
+                t = log.startTimer('Calculating aggregate pairwise similarity...')
+                sim = calculateAggregatePairwiseSimilarity(
+                    group,
+                    replicates,
+                    query,
+                    target,
+                    db
+                )
+                log.stopTimer(t, 'Done in {0:.2f}s.')
+                sims[emb_set.name] = sim
+
+    ordered_sims = []
+    for emb_set in sorted(embedding_sets, key=lambda es: es.ordering):
+        if emb_set.name in sims:
+            ordered_sims.append(sims[emb_set.name])
+
+    return ordered_sims
 
 
 if __name__ == '__main__':
@@ -89,24 +135,16 @@ if __name__ == '__main__':
     db = EmbeddingNeighborhoodDatabase(analysis_config['DatabaseFile'])
     log.writeln('Database ready.\n')
 
-    for src in options.src.split(','):
-        src_config = config[src]
-        log.writeln('Loading embedding replicates...')
-        replicates = nn_io.EmbeddingReplicates(
-            src,
-            src_config['ReplicateTemplate'].format(REPL='*'),
-            src_config['EmbeddingFormat'])
-        log.writeln('Found {0:,} replicates.\n'.format(len(replicates)))
+    sims = calculateAllAggregatePairwiseSimilarities(
+        group,
+        options.query_key,
+        options.target_key,
+        config,
+        db
+    )
 
-        t = log.startTimer('Calculating aggregate pairwise similarity...')
-        sim = calculateAggregatePairwiseSimilarity(
-            group,
-            replicates,
-            options.query_key,
-            options.target_key,
-            db
-        )
-        log.stopTimer(t, 'Done in {0:.2f}s.')
+    for sim in sims:
+        log.writeln('Source: {0}'.format(sim.source.name))
         log.writeln('  Mean similarity: {0:.4f}'.format(sim.mean_similarity))
         log.writeln('  Similarity std dev: {0:.4f}\n'.format(sim.std_similarity))
 

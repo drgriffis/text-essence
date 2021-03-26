@@ -10,6 +10,7 @@ import configparser
 from nearest_neighbors.database import *
 from nearest_neighbors.dashboard import packaging
 from nearest_neighbors.dashboard import visualization
+from nearest_neighbors.calculation import pair_similarity
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -137,7 +138,6 @@ def info(query_key=None):
     neighbor_type = EmbeddingType.parse(neighbor_type)
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
-    #corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
     hc_threshold = float(config['PairedNeighborhoodAnalysis']['HighConfidenceThreshold'])
     num_neighbors = int(config['PairedNeighborhoodAnalysis']['NumNeighborsToShow'])
 
@@ -274,8 +274,7 @@ def search(query=None):
     return render_template(
         'search.html',
         query=query,
-        rows=table_rows,
-        corpora='2020-03-27,2020-04-03'  ## hard-coded value for now
+        rows=table_rows
     )
 
 
@@ -315,15 +314,21 @@ def pairwise(query=None, target=None):
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
     num_neighbors = int(config['PairedNeighborhoodAnalysis']['NumNeighborsToShow'])
+    group = db.getOrCreateEmbeddingSetGroup('CORD-19')
+    embedding_sets = list(db.selectFromEmbeddingSets(group_ID=group.ID))
 
     ## (1) get pairwise similarity data
-    rows = db.selectFromAggregatePairwiseSimilarity(query, target)
-    rows = sorted(rows, key=lambda item: item.source)
-    corpora, means, stds = [], [], []
-    for row in rows:
-        corpora.append(row.source)
-        means.append(row.mean_similarity)
-        stds.append(row.std_similarity)
+    rows = pair_similarity.getAllAggregatePairwiseSimilarities(
+        group,
+        query,
+        target,
+        config,
+        db,
+        overwrite=False
+    )
+
+    means = { row.source.ID: row.mean_similarity for row in rows }
+    stds = { row.source.ID: row.std_similarity for row in rows }
 
     ## (2) get terms for each entity
     query_term_list, query_preferred_term = getTerms(
@@ -336,21 +341,20 @@ def pairwise(query=None, target=None):
     )
 
     ## (3) get neighbors for each entity
-    corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
     neighbor_type = EmbeddingType.parse('ENTITY')
     query_confidences = getConfidences(
         db,
-        corpora,
+        embedding_sets,
         query
     )
     target_confidences = getConfidences(
         db,
-        corpora,
+        embedding_sets,
         target
     )
     query_tables = getNeighborTables(
         db,
-        corpora,
+        embedding_sets,
         query,
         neighbor_type,
         query_confidences,
@@ -358,48 +362,43 @@ def pairwise(query=None, target=None):
     )
     target_tables = getNeighborTables(
         db,
-        corpora,
+        embedding_sets,
         target,
         neighbor_type,
         target_confidences,
         limit=num_neighbors,
     )
 
-    ## (4) reconfigure table layout to have paired columnar browsing
-    paired_tables = []
-    for i in range(len(query_tables)):
-        query_tables[i]['IsGridRowStart'] = True
-        query_tables[i]['IsGridRowEnd'] = False
-
-        target_tables[i]['IsGridRowStart'] = False
-        target_tables[i]['IsGridRowEnd'] = True
-
-        paired_tables.append(query_tables[i])
-        paired_tables.append(target_tables[i])
-
+    # placeholder to enable successful completion of call
     return jsonify({
         "firstName": query_preferred_term,
         "secondName": target_preferred_term,
-        "similarities": {
-            i: {
-                "label": label,
-                "meanSimilarity": means[i],
-                "stdSimilarity": stds[i],
-                "firstConfidence": float(query_tables[i]["Confidence"]),
-                "secondConfidence": float(target_tables[i]["Confidence"]),
-                "firstNeighbors": [
-                    {"id": n["NeighborKey"],
-                    "name": n["NeighborString"],
-                    "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
-                ],
-                "secondNeighbors": [
-                    {"id": n["NeighborKey"],
-                    "name": n["NeighborString"],
-                    "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
-                ],
-            } for i, label in enumerate(corpora)
-        }
+        "similarities": {}
     })
+
+    #return jsonify({
+    #    "firstName": query_preferred_term,
+    #    "secondName": target_preferred_term,
+    #    "similarities": {
+    #        i: {
+    #            "label": label,
+    #            "meanSimilarity": means[i],
+    #            "stdSimilarity": stds[i],
+    #            "firstConfidence": float(query_tables[i]["Confidence"]),
+    #            "secondConfidence": float(target_tables[i]["Confidence"]),
+    #            "firstNeighbors": [
+    #                {"id": n["NeighborKey"],
+    #                "name": n["NeighborString"],
+    #                "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
+    #            ],
+    #            "secondNeighbors": [
+    #                {"id": n["NeighborKey"],
+    #                "name": n["NeighborString"],
+    #                "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
+    #            ],
+    #        } for i, label in enumerate(corpora)
+    #    }
+    #})
 
 
 
