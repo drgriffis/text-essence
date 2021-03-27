@@ -122,3 +122,19 @@ class AggregatePairwiseSimilarity:
         self.neighbor_key = neighbor_key
         self.mean_similarity = mean_similarity
         self.std_similarity = std_similarity
+
+class PairwiseSimilarityProgress:
+    group = None
+    key = None
+    neighbor_key = None
+    running = True
+    progress = 0.0
+    progress_message = ""
+    
+    def __init__(self, group, key, neighbor_key, running, progress, progress_message):
+        self.group = group
+        self.key = key
+        self.neighbor_key = neighbor_key
+        self.running = running
+        self.progress = progress
+        self.progress_message = progress_message

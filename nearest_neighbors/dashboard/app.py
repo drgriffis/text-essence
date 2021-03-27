@@ -318,14 +318,25 @@ def pairwise(query=None, target=None):
     embedding_sets = list(db.selectFromEmbeddingSets(group_ID=group.ID))
 
     ## (1) get pairwise similarity data
-    rows = pair_similarity.getAllAggregatePairwiseSimilarities(
+    similarity_info = pair_similarity.calculateAllAggregatePairwiseSimilaritiesBackground(
         group,
         query,
         target,
         config,
-        db,
-        overwrite=False
+        db
     )
+    if not similarity_info["result"]:
+        # Return progress
+        progress_obj = similarity_info["progress"]
+        return jsonify({
+            "result": None,
+            "progress": {
+                "progress": progress_obj.progress,
+                "progressMessage": progress_obj.progress_message
+            }
+        })
+
+    rows = similarity_info["result"]
 
     means = { row.source.ID: row.mean_similarity for row in rows }
     stds = { row.source.ID: row.std_similarity for row in rows }
@@ -370,27 +381,28 @@ def pairwise(query=None, target=None):
     )
 
     return jsonify({
-       "firstName": query_preferred_term,
-       "secondName": target_preferred_term,
-       "similarities": [
-           {
-               "label": emb_set.name,
-               "meanSimilarity": means.get(emb_set.ID, None),
-               "stdSimilarity": stds.get(emb_set.ID, None),
-               "firstConfidence": float(query_tables[i]["Confidence"]),
-               "secondConfidence": float(target_tables[i]["Confidence"]),
-               "firstNeighbors": [
-                   {"id": n["NeighborKey"],
-                   "name": n["NeighborString"],
-                   "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
-               ],
-               "secondNeighbors": [
-                   {"id": n["NeighborKey"],
-                   "name": n["NeighborString"],
-                   "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
-               ],
-           } for i, emb_set in enumerate(embedding_sets)
-       ]
+        "result": {
+            "firstName": query_preferred_term,
+            "secondName": target_preferred_term,
+            "similarities": [{
+                "label": emb_set.name,
+                "meanSimilarity": means.get(emb_set.ID, None),
+                "stdSimilarity": stds.get(emb_set.ID, None),
+                "firstConfidence": query_tables[i]["Confidence"],
+                "secondConfidence": target_tables[i]["Confidence"],
+                "firstNeighbors": [{
+                    "id": n["NeighborKey"],
+                    "name": n["NeighborString"],
+                    "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
+                ],
+                "secondNeighbors": [{
+                    "id": n["NeighborKey"],
+                    "name": n["NeighborString"],
+                    "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
+                ],
+            } for i, emb_set in enumerate(embedding_sets)
+        ]   
+        }
     })
 
 
@@ -424,14 +436,12 @@ def getNeighborTables(db, embedding_sets, query_key, neighbor_type, confidences,
 
         confidence = confidences.get(embedding_set.ID, None)
         if confidence is None:
-            confidence = '--'
             table_class = 'no_data'
         else:
             if confidence >= high_confidence_threshold:
                 table_class = 'high_confidence'
             else:
                 table_class = 'low_confidence'
-            confidence = packaging.prettify(confidence)
 
         tables.append({
             'Corpus': embedding_set.name,

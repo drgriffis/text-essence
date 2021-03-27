@@ -24,12 +24,14 @@ class EmbeddingType:
 
 class EmbeddingNeighborhoodDatabase:
     
-    def __init__(self, fpath):
+    def __init__(self, fpath, build=True):
         self._connection = sqlite3.connect(fpath)
         self._cursor = self._connection.cursor()
-        self._build()
+        if build:
+            self._build()
 
     def close(self):
+        self._connection.commit()
         self._connection.close()
 
     def _build(self):
@@ -191,6 +193,24 @@ class EmbeddingNeighborhoodDatabase:
             CONSTRAINT FK_Source
                 FOREIGN KEY (Source)
                 REFERENCES EmbeddingSets(ID)
+        )
+        ''')
+
+        ## the PairwiseSimilarityProgress table stores progress towards
+        ## completion of AggregatePairwiseSimilarity computations
+        self._cursor.execute('''
+        CREATE TABLE IF NOT EXISTS PairwiseSimilarityProgress
+        (
+            GroupID int NOT NULL,
+            EntityKey text,
+            NeighborKey text,
+            Running int,
+            Progress real DEFAULT 0.0,
+            ProgressMessage varchar(100) DEFAULT "",
+            UNIQUE(EntityKey, NeighborKey),
+            CONSTRAINT FK_GroupID
+                FOREIGN KEY (GroupID)
+                REFERENCES EmbeddingSetGroups(ID)
         )
         ''')
 
@@ -560,8 +580,8 @@ class EmbeddingNeighborhoodDatabase:
                 s.source.ID,
                 s.key,
                 s.neighbor_key,
-                float(s.mean_similarity),
-                float(s.std_similarity)
+                float(s.mean_similarity) if s.mean_similarity is not None else None,
+                float(s.std_similarity) if s.std_similarity is not None else None
             )
                 for s in sims
         ]
@@ -1234,3 +1254,68 @@ class EmbeddingNeighborhoodDatabase:
                     std_similarity=std_similarity
                 )
                 yield ret_obj
+
+    def getPairwiseSimilarityProgress(self, group, query_key, target):
+        """Gets the current progress toward generating pairwise similarities for
+        the given pair of entities, if it exists."""
+        
+        if type(group) is EmbeddingSetGroup:
+            group = group.ID
+
+        query = '''
+        SELECT
+            *
+        FROM
+            PairwiseSimilarityProgress
+        WHERE
+            GroupID=?
+            AND EntityKey=?
+            AND NeighborKey=?
+        '''
+
+        args = [
+            group,
+            query_key,
+            target
+        ]
+
+        self._cursor.execute(query, args)
+        raw_rows = list(self._cursor)
+
+        if len(raw_rows) > 0:
+            (
+                group,
+                key,
+                neighbor_key,
+                running,
+                progress,
+                progress_message
+            ) = raw_rows[0]
+            return PairwiseSimilarityProgress(group, key, neighbor_key, running, progress, progress_message)
+
+        return None
+        
+    def updatePairwiseSimilarityProgress(self, group, query_key, target, running, progress, progress_message):
+        if type(group) is EmbeddingSetGroup:
+            group = group.ID
+
+        row = (
+            group,
+            query_key,
+            target,
+            running,
+            progress,
+            progress_message
+        )
+        self._cursor.execute(
+            '''
+            REPLACE INTO PairwiseSimilarityProgress VALUES (
+                ?, ?, ?, ?, ?, ?
+            )
+            ''',
+            row
+        )
+        self._connection.commit()
+        
+        return PairwiseSimilarityProgress(group, query_key, target, running, progress, progress_message)
+    
