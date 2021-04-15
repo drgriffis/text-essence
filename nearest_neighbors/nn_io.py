@@ -8,20 +8,22 @@ import codecs
 import pyemblib
 
 class EmbeddingReplicates:
-    def __init__(self, ID, src_config, lazy=True):
-        self.ID = ID
+    def __init__(self, source, file_pattern, embedding_format, lazy=True):
+        self.source = source
 
         # detect number of replicates
-        self._embedfs = glob.glob(
-            src_config['ReplicateTemplate'].format(REPL='*')
-        )
-        self._mode = src_config['EmbeddingFormat']
+        self._embedfs = glob.glob(file_pattern)
+        self._mode = embedding_format
         self._embedf_index = 0
 
         self._lazy = True
         if not lazy:
             self._embeddings = list(self)
         self._lazy = lazy
+
+        #index all of the keys in the replicate set
+        tmp_embeds = self._loadEmbeddingsFile(0)
+        self._keys = tmp_embeds.keys()
 
     def __iter__(self):
         if self._lazy:
@@ -34,13 +36,20 @@ class EmbeddingReplicates:
         if self._embedf_index == len(self._embedfs):
             raise StopIteration
         else:
-            embedf = self._embedfs[self._embedf_index]
-            embeds = pyemblib.read(embedf, mode=self._mode, errors='replace')
+            embeds = self._loadEmbeddingsFile(self._embedf_index)
             self._embedf_index += 1
             return embeds
 
     def __len__(self):
         return len(self._embedfs)
+
+    def _loadEmbeddingsFile(self, index):
+        embedf = self._embedfs[self._embedf_index]
+        embeds = pyemblib.read(embedf, mode=self._mode, errors='replace')
+        return embeds
+
+    def hasKey(self, key):
+        return key in self._keys
 
 def writeNodeMap(emb, f):
     ordered = tuple([

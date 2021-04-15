@@ -10,6 +10,7 @@ import configparser
 from nearest_neighbors.database import *
 from nearest_neighbors.dashboard import packaging
 from nearest_neighbors.dashboard import visualization
+from nearest_neighbors.calculation import pair_similarity
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -17,10 +18,37 @@ config.read('config.ini')
 @app.route('/')
 def landingPage():
     return send_from_directory('diachronic-concept-viewer/public', 'index.html')
-
+        
 @app.route('/<path:path>')
 def staticFiles(path):
     return send_from_directory('diachronic-concept-viewer/public', path)
+
+@app.route('/visualization')
+def getVisualizationData():
+    vis_path = config['Visualization']['OutputFile']
+    if not os.path.exists(vis_path):
+        return app.response_class(
+            response="The dataset does not exist", status=404)
+    with open(vis_path, "r") as file:
+        return app.response_class(
+            response=file.read(),
+            status=200,
+            mimetype='application/json'
+        )
+
+@app.route('/entities')
+def listAllEntities():
+    db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
+    
+    rows = db.selectAllPreferredEntityNamesWithNeighbors()
+    unique_ids = set()
+    result = []
+    for row in rows:
+        if row.entity_key in unique_ids: continue
+        result.append({"id": row.entity_key, "name": row.term})
+        unique_ids.add(row.entity_key)
+    
+    return jsonify(result)
 
 @app.route('/showchanges', methods=['POST'])
 @app.route('/showchanges/<src>/<trg>/<filter_set>/<at_k>', methods=['GET', 'POST'])
@@ -110,21 +138,22 @@ def info(query_key=None):
     neighbor_type = EmbeddingType.parse(neighbor_type)
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
-    corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
     hc_threshold = float(config['PairedNeighborhoodAnalysis']['HighConfidenceThreshold'])
     num_neighbors = int(config['PairedNeighborhoodAnalysis']['NumNeighborsToShow'])
+
+    embedding_sets = list(db.selectFromEmbeddingSets(group_ID=1))
 
     ## (1) get its confidence history
     confidences = getConfidences(
         db,
-        corpora,
+        embedding_sets,
         query_key
     )
 
     ## (2) get the nearest neighbors
     tables = getNeighborTables(
         db,
-        corpora,
+        embedding_sets,
         query_key,
         neighbor_type,
         confidences,
@@ -144,10 +173,10 @@ def info(query_key=None):
 
     ## (4) get its change history
     cwds = []
-    for i in range(len(corpora)-1):
-        change_src = corpora[i]
-        change_trg = corpora[i+1]
-        filter_set = '.HC_Union_{0}_{1}'.format(change_src, change_trg)  ## TODO HARD CODED
+    for i in range(len(embedding_sets)-1):
+        change_src = embedding_sets[i]
+        change_trg = embedding_sets[i+1]
+        filter_set = '.HC_Union_{0}_{1}'.format(change_src.name, change_trg.name)  ## TODO HARD CODED
         at_k = 5  ## TODO HARD CODED
 
         rows = db.selectFromEntityOverlapAnalysis(
@@ -163,28 +192,29 @@ def info(query_key=None):
         else:
             cwds.append(None)
 
-    entity_change_analysis_base64 = packaging.renderImage(
-        visualization.entityChangeAnalysis,
-        args=(corpora, cwds),
-        kwargs={'figsize': (11,3), 'font_size': 14}
-    )
+    if any(cwds):
+        entity_change_analysis_base64 = packaging.renderImage(
+            visualization.entityChangeAnalysis,
+            args=(embedding_sets, cwds),
+            kwargs={'figsize': (11,3), 'font_size': 14}
+        )
 
-    confidence_analysis_base64 = packaging.renderImage(
-        visualization.internalConfidenceAnalysis,
-        args=(corpora, [confidences.get(c, None) for c in corpora], hc_threshold),
-        kwargs={'figsize': (6,2), 'font_size': 14}
-    )
-
-    return render_template(
-        'info.html',
-        query_key=query_key,
-        preferred_term=preferred_term,
-        all_terms=sorted(term_list),
-        all_definitions=sorted(definition_list),
-        tables=tables,
-        entity_change_analysis_base64=entity_change_analysis_base64,
-        confidence_analysis_base64=confidence_analysis_base64
-    )
+    return jsonify({
+        "id": query_key,
+        "name": preferred_term,
+        "definitions": sorted(definition_list),
+        "confidences": {i: confidences.get(es.ID, None) for i, es in enumerate(embedding_sets)},
+        "otherTerms": sorted(term_list),
+        "frameDescriptions": {
+            i: ("Confidence: {:.3f}".format(confidences[es.ID])
+                if es.ID in confidences else "")
+            for i, es in enumerate(embedding_sets)},
+        "neighbors": {i: [
+            {"id": n["NeighborKey"],
+             "name": n["NeighborString"],
+             "distance": float(n["Distance"])} for n in tables[i]["Rows"]
+        ] for i, es in enumerate(embedding_sets)}
+    })
 
 
 @app.route('/terms', methods=['POST'])
@@ -244,8 +274,7 @@ def search(query=None):
     return render_template(
         'search.html',
         query=query,
-        rows=table_rows,
-        corpora='2020-03-27,2020-04-03'  ## hard-coded value for now
+        rows=table_rows
     )
 
 
@@ -285,15 +314,32 @@ def pairwise(query=None, target=None):
 
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
     num_neighbors = int(config['PairedNeighborhoodAnalysis']['NumNeighborsToShow'])
+    group = db.getOrCreateEmbeddingSetGroup('CORD-19')
+    embedding_sets = list(db.selectFromEmbeddingSets(group_ID=group.ID))
 
     ## (1) get pairwise similarity data
-    rows = db.selectFromAggregatePairwiseSimilarity(query, target)
-    rows = sorted(rows, key=lambda item: item.source)
-    corpora, means, stds = [], [], []
-    for row in rows:
-        corpora.append(row.source)
-        means.append(row.mean_similarity)
-        stds.append(row.std_similarity)
+    similarity_info = pair_similarity.calculateAllAggregatePairwiseSimilaritiesBackground(
+        group,
+        query,
+        target,
+        config,
+        db
+    )
+    if not similarity_info["result"]:
+        # Return progress
+        progress_obj = similarity_info["progress"]
+        return jsonify({
+            "result": None,
+            "progress": {
+                "progress": progress_obj.progress,
+                "progressMessage": progress_obj.progress_message
+            }
+        })
+
+    rows = similarity_info["result"]
+
+    means = { row.source.ID: row.mean_similarity for row in rows }
+    stds = { row.source.ID: row.std_similarity for row in rows }
 
     ## (2) get terms for each entity
     query_term_list, query_preferred_term = getTerms(
@@ -306,21 +352,20 @@ def pairwise(query=None, target=None):
     )
 
     ## (3) get neighbors for each entity
-    corpora = config['PairedNeighborhoodAnalysis']['CorpusOrdering'].split(',')
     neighbor_type = EmbeddingType.parse('ENTITY')
     query_confidences = getConfidences(
         db,
-        corpora,
+        embedding_sets,
         query
     )
     target_confidences = getConfidences(
         db,
-        corpora,
+        embedding_sets,
         target
     )
     query_tables = getNeighborTables(
         db,
-        corpora,
+        embedding_sets,
         query,
         neighbor_type,
         query_confidences,
@@ -328,58 +373,52 @@ def pairwise(query=None, target=None):
     )
     target_tables = getNeighborTables(
         db,
-        corpora,
+        embedding_sets,
         target,
         neighbor_type,
         target_confidences,
         limit=num_neighbors,
     )
 
-    ## (4) reconfigure table layout to have paired columnar browsing
-    paired_tables = []
-    for i in range(len(query_tables)):
-        query_tables[i]['IsGridRowStart'] = True
-        query_tables[i]['IsGridRowEnd'] = False
-
-        target_tables[i]['IsGridRowStart'] = False
-        target_tables[i]['IsGridRowEnd'] = True
-
-        paired_tables.append(query_tables[i])
-        paired_tables.append(target_tables[i])
-
-    ## (5) draw the pairwise similarity graph
-    pairwise_similarity_analysis_base64 = packaging.renderImage(
-        visualization.pairwiseSimilarityAnalysis,
-        args=(corpora, means, stds),
-        kwargs={'figsize': (13,3), 'font_size': 14}
-    )
-
-    return render_template(
-        'pairwise.html',
-        query=query,
-        query_preferred_term=query_preferred_term,
-        query_terms=sorted(query_term_list),
-        target=target,
-        target_preferred_term=target_preferred_term,
-        target_terms=sorted(target_term_list),
-        paired_tables=paired_tables,
-        pairwise_similarity_analysis_base64=pairwise_similarity_analysis_base64
-    )
+    return jsonify({
+        "result": {
+            "firstName": query_preferred_term,
+            "secondName": target_preferred_term,
+            "similarities": [{
+                "label": emb_set.name,
+                "meanSimilarity": means.get(emb_set.ID, None),
+                "stdSimilarity": stds.get(emb_set.ID, None),
+                "firstConfidence": query_tables[i]["Confidence"],
+                "secondConfidence": target_tables[i]["Confidence"],
+                "firstNeighbors": [{
+                    "id": n["NeighborKey"],
+                    "name": n["NeighborString"],
+                    "distance": float(n["Distance"])} for n in query_tables[i]["Rows"]
+                ],
+                "secondNeighbors": [{
+                    "id": n["NeighborKey"],
+                    "name": n["NeighborString"],
+                    "distance": float(n["Distance"])} for n in target_tables[i]["Rows"]
+                ],
+            } for i, emb_set in enumerate(embedding_sets)
+        ]   
+        }
+    })
 
 
 
 
 ## TODO: change to single query
-def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
+def getNeighborTables(db, embedding_sets, query_key, neighbor_type, confidences,
         limit=10, high_confidence_threshold=0.5):
     tables = []
     TABLES_PER_ROW = 3
-    for i in range(len(corpora)):
-        corpus = corpora[i]
-        filter_set='.HC_{0}'.format(corpus)
+    for i in range(len(embedding_sets)):
+        embedding_set = embedding_sets[i]
+        filter_set='.HC_{0}'.format(embedding_set.name)
         rows = db.selectFromAggregateNearestNeighbors(
-            corpus,
-            corpus,
+            embedding_set,
+            embedding_set,
             filter_set,
             query_key,
             neighbor_type=neighbor_type,
@@ -395,19 +434,17 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
                 'Distance': packaging.prettify(row.mean_distance, decimals=3)
             })
 
-        confidence = confidences.get(corpus, None)
+        confidence = confidences.get(embedding_set.ID, None)
         if confidence is None:
-            confidence = '--'
             table_class = 'no_data'
         else:
             if confidence >= high_confidence_threshold:
                 table_class = 'high_confidence'
             else:
                 table_class = 'low_confidence'
-            confidence = packaging.prettify(confidence)
 
         tables.append({
-            'Corpus': corpus,
+            'Corpus': embedding_set.name,
             'Confidence': confidence,
             'Class': table_class,
             'Rows': table_rows,
@@ -418,16 +455,16 @@ def getNeighborTables(db, corpora, query_key, neighbor_type, confidences,
     return tables
 
 ## TODO: change to single query
-def getConfidences(db, corpora, query_key):
+def getConfidences(db, embedding_sets, query_key):
     confidences = {}
-    for corpus in corpora:
+    for embedding_set in embedding_sets:
         rows = db.selectFromInternalConfidence(
-            src=corpus,
+            src=embedding_set,
             at_k=5,
             key=query_key
         )
         for row in rows:
-            confidences[corpus] = row.confidence
+            confidences[embedding_set.ID] = row.confidence
     return confidences
 
 def getTerms(db, query_key):

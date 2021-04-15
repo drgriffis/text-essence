@@ -1,3 +1,35 @@
+class EmbeddingSetGroup:
+    ID = None
+    short_name = None
+    display_title = None
+
+    def __init__(self, short_name, display_title=None, ID=None):
+        self.ID = ID
+        self.short_name = short_name
+        self.display_title = display_title
+
+    def __str__(self):
+        return '<EmbeddingSetGroup  ID: {0}  Short Name: "{1}"  Display Title: "{2}">'.format(
+            self.ID, self.short_name, self.display_title
+        )
+
+class EmbeddingSet:
+    ID = None
+    group = None
+    name = None
+    ordering = None
+
+    def __init__(self, group, name, ordering, ID=None):
+        self.ID = ID
+        self.group = group
+        self.name = name
+        self.ordering = ordering
+
+    def __str__(self):
+        return '<EmbeddingSet  ID: {0}  Group: {1}  Name: "{2}"  Ordering: {3}>'.format(
+            self.ID, self.group, self.name, self.ordering
+        )
+
 class EntityOverlapAnalysis:
     source = None
     target = None
@@ -33,6 +65,11 @@ class InternalConfidence:
         self.at_k = at_k
         self.key = key
         self.confidence = confidence
+
+    def __str__(self):
+        return '<InternalConfidence  Source: {0}  AtK: {1}  Key: {2}  Confidence: {3}>'.format(
+            self.source, self.at_k, self.key, self.confidence
+        )
 
 class AggregateNearestNeighbor:
     source = None
@@ -85,3 +122,19 @@ class AggregatePairwiseSimilarity:
         self.neighbor_key = neighbor_key
         self.mean_similarity = mean_similarity
         self.std_similarity = std_similarity
+
+class PairwiseSimilarityProgress:
+    group = None
+    key = None
+    neighbor_key = None
+    running = True
+    progress = 0.0
+    progress_message = ""
+    
+    def __init__(self, group, key, neighbor_key, running, progress, progress_message):
+        self.group = group
+        self.key = key
+        self.neighbor_key = neighbor_key
+        self.running = running
+        self.progress = progress
+        self.progress_message = progress_message

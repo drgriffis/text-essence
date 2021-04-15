@@ -77,7 +77,7 @@ def rankKeysByMeanDeltaFromBaseline(control_overlap_percentage_means,
     return sorted_deltas
 
 
-def analyzeOverlap(src, trg, config, db, k=5,
+def analyzeOverlap(group, src, trg, config, db, k=5,
         confidence_threshold=0.5, filter_spec=''):
     src_neighbor_sets = []
     trg_neighbor_sets = []
@@ -112,11 +112,14 @@ def analyzeOverlap(src, trg, config, db, k=5,
 
     log.writeln('  >> [3/3] Adding overlap analyses to database...')
 
+    source_set = db.getOrCreateEmbeddingSet(name=src, group_name=group)
+    target_set = db.getOrCreateEmbeddingSet(name=trg, group_name=group)
+
     overlaps = []
     for (key, en_similarity) in cross_distribs.items():
         overlaps.append(EntityOverlapAnalysis(
-            source=src,
-            target=trg,
+            source=source_set,
+            target=target_set,
             filter_set=filter_spec,
             at_k=k,
             key=key,
@@ -129,6 +132,8 @@ if __name__ == '__main__':
     def _cli():
         import optparse
         parser = optparse.OptionParser(usage='Usage: %prog')
+        parser.add_option('-g', '--group', dest='group',
+            help='(required) embedding set group specifier')
         parser.add_option('-s', '--src', dest='src',
             help='(required) source specifier')
         parser.add_option('-t', '--trg', dest='trg',
@@ -146,6 +151,9 @@ if __name__ == '__main__':
             help='name of file to write log contents to (empty for stdout)',
             default=None)
         (options, args) = parser.parse_args()
+        if not options.group:
+            parser.print_help()
+            parser.error('Must provide --group')
         if not options.src:
             parser.print_help()
             parser.error('Must provide --src')
@@ -157,6 +165,7 @@ if __name__ == '__main__':
     options = _cli()
     log.start(options.logfile)
     log.writeConfig([
+        ('Group specifier', options.group),
         ('Source specifier', options.src),
         ('Target specifier', options.trg),
         ('Filter specifier', options.filter_spec),
@@ -184,6 +193,7 @@ if __name__ == '__main__':
 
     log.writeln('Analyzing {0}/{1} neighbors...'.format(options.src, options.trg))
     analyzeOverlap(
+        options.group,
         options.src,
         options.trg,
         config,
