@@ -14,7 +14,8 @@ See more at:
 (1) **Set up the environment.** 
 [Install Node.js](https://nodejs.org/en/), and set up a Python virtual environment with the necessary dependencies. The following (using Anaconda) should do the trick: 
 ```bash 
-conda create -n textessence python=3 
+conda create -n textessence python=3
+source activate textessence
 pip install -r requirements.txt
 ```
 
@@ -41,5 +42,53 @@ ReplicateTemplate = /var/textessence/2020-03-27/2020-03-27_SNOMEDCT_concepts_rep
 EmbeddingFormat = txt
 ...
 ```
+This allows the Compare interface to calculate cosine similarities between embeddings on demand.
 
-<img src="https://publicdomainvectors.org/photos/under-construction_geek_man_01.png" />
+(3) **Start the Flask backend**
+The back end of the web interface is implemented in [Flask](https://flask.palletsprojects.com/en/1.1.x/). A make target has been created in `makefile` to simplify running the interface:
+```bash
+make run_dashboard
+```
+
+(4) **Start the Svelte frontend**
+The front end of the web interface is implemented in [Svelte](https://svelte.dev/).
+
+_First-time setup:_ Load the visualization module and install its packages, using
+```bash
+git submodule init
+git submodule update
+cd nearest_neighbors/dashboard/diachronic-concept-viewer
+npm install
+```
+
+_Main run command:_ Start the Node server for handling the visualization content, using
+```bash
+npm run autobuild
+```
+
+(5) **Start using the system!**
+TextEssence will now be running at http://localhost:5000.
+
+## Using the interface
+
+_Documentation in progress_
+
+## CORD-19 experiments
+
+_Documentation in progress_
+
+## Contact and citation
+
+If you have a question about TextEssence or an issue using the toolkit, please submit a GitHub issue.
+
+If you use TextEssence in your work, please cite the following paper:
+```
+@inproceedings(Newman-Griffis2018Repl4NLP,
+  author = {Newman-Griffis, Denis and Sivaraman, Venkatesh and Perer, Adam and Fosler-Lussier, Eric and Hochheiser, Harry},
+  title = {TextEssence: A Tool for Interactive Analysis of Semantic Shifts Between Corpora},
+  booktitle = {Proceedings of the 2021 Annual Conference of the North American Chapter of the Association for Computational Linguistics},
+  year = {2021}
+}
+```
+
+For any other questions, please contact Denis Newman-Griffis at `dnewmangriffis@pitt.edu`.
