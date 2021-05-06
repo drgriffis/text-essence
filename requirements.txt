@@ -4,3 +4,5 @@ pyemblib
 nltk
 spacy
 scispacy
+matplotlib
+flask
