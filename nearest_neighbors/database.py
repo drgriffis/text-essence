@@ -948,7 +948,7 @@ class EmbeddingNeighborhoodDatabase:
                 AggregateNearestNeighborSubsets AS anns
                 ON
                     anns.NeighborID = ann.ID
-            INNER JOIN
+            LEFT OUTER JOIN
                 EntityTerms AS et_query
                 ON
                     et_query.EntityKey = ann.EntityKey
