@@ -81,11 +81,11 @@ def build_frame(embedding, embedding_set, db, labels, confidence_threshold=0.0, 
             continue
 
         # Get preferred name of the entity
-        name_rows = db.selectFromEntityTerms(id_val, preferred=True)
+        name_rows = list(db.selectFromEntityTerms(id_val, preferred=True))
         if not name_rows:
-            num_filtered["no_name"] = num_filtered.get("no_name", 0) + 1
-            continue
-        preferred_name = next(name_rows).term
+            preferred_name = id_val
+        else:
+            preferred_name = name_rows[0].term
                 
         points.append({
             "id": id_val,
