@@ -1070,6 +1070,14 @@ class EmbeddingNeighborhoodDatabase:
                 mean_distance=mean_distance
             )
             yield ret_obj
+            
+    def selectAllEntityKeysWithNeighbors(self):
+        query = "SELECT DISTINCT(EntityKey) FROM AggregateNearestNeighbors"
+
+        self._cursor.execute(query)
+        for row in self._cursor:
+            yield row[0]
+
 
     def findAggregateNearestNeighborsMembership(self, key,
             neighbor_type=EmbeddingType.ENTITY):

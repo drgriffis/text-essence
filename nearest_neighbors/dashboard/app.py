@@ -40,13 +40,18 @@ def getVisualizationData():
 def listAllEntities():
     db = EmbeddingNeighborhoodDatabase(config['PairedNeighborhoodAnalysis']['DatabaseFile'])
     
-    rows = db.selectAllPreferredEntityNamesWithNeighbors()
-    unique_ids = set()
-    result = []
-    for row in rows:
-        if row.entity_key in unique_ids: continue
-        result.append({"id": row.entity_key, "name": row.term})
-        unique_ids.add(row.entity_key)
+    rows = list(db.selectAllPreferredEntityNamesWithNeighbors())
+    if not rows:
+        # Fallback to just entity IDs
+        rows = list(db.selectAllEntityKeysWithNeighbors())
+        result = [{"id": v, "name": v} for v in rows]
+    else:
+        unique_ids = set()
+        result = []
+        for row in rows:
+            if row.entity_key in unique_ids: continue
+            result.append({"id": row.entity_key, "name": row.term})
+            unique_ids.add(row.entity_key)
     
     return jsonify(result)
 
