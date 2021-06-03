@@ -2,10 +2,10 @@
 <img src="https://textessence.github.io/assets/img/2021-textessence.png" />
 
 TextEssence is a tool for comparative corpus linguistics using embeddings. It is described in the NAACL-HLT 2021 paper:
-- D Newman-Griffis, V Sivaraman, A Perer, E Fosler-Lussier, H Hochheiser. [TextEssence: A Tool for Interactive Analysis of Semantic Shifts Between Corpora](https://arxiv.org/abs/2103.11029). Proceedings of NAACL-HLT 2021.
+- D Newman-Griffis, V Sivaraman, A Perer, E Fosler-Lussier, H Hochheiser. [TextEssence: A Tool for Interactive Analysis of Semantic Shifts Between Corpora](https://www.aclweb.org/anthology/2021.naacl-demos.13/). Proceedings of the 2021 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies: Demonstrations.
 
 See more at:
-- Paper: https://arxiv.org/abs/2103.11029
+- Paper: https://www.aclweb.org/anthology/2021.naacl-demos.13/
 - CORD-19 analysis outputs: https://zenodo.org/record/4432958
 - Project website: https://textessence.github.io
 
@@ -83,11 +83,20 @@ If you have a question about TextEssence or an issue using the toolkit, please s
 
 If you use TextEssence in your work, please cite the following paper:
 ```
-@inproceedings(Newman-Griffis2018Repl4NLP,
-  author = {Newman-Griffis, Denis and Sivaraman, Venkatesh and Perer, Adam and Fosler-Lussier, Eric and Hochheiser, Harry},
-  title = {TextEssence: A Tool for Interactive Analysis of Semantic Shifts Between Corpora},
-  booktitle = {Proceedings of the 2021 Annual Conference of the North American Chapter of the Association for Computational Linguistics},
-  year = {2021}
+@inproceedings{newman-griffis-etal-2021-textessence,
+    title = "{T}ext{E}ssence: A Tool for Interactive Analysis of Semantic Shifts Between Corpora",
+    author = "Newman-Griffis, Denis  and
+      Sivaraman, Venkatesh  and
+      Perer, Adam  and
+      Fosler-Lussier, Eric  and
+      Hochheiser, Harry",
+    booktitle = "Proceedings of the 2021 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies: Demonstrations",
+    month = jun,
+    year = "2021",
+    address = "Online",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/2021.naacl-demos.13",
+    pages = "106--115",
 }
 ```
 
