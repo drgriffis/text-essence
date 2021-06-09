@@ -1,4 +1,15 @@
-# <img src="https://textessence.github.io/assets/img/logo-black-text.png" width="300px" />
+<h1 align="center"><img src="https://textessence.github.io/assets/img/logo-black-text.png" width="300px" /></h1>
+
+<h3 align="center">Comparative corpus linguistics with embeddings</h3>
+<p align="center">
+  <a href="https://textessence.github.io"><img src="http://img.shields.io/badge/Site-Project-purple.svg"></a>
+  <a href="https://www.aclweb.org/anthology/2021.naacl-demos.13/"><img src="http://img.shields.io/badge/Paper-ACL Anthology-red.svg"></a>
+  <a href="http://textessence.dbmi.pitt.edu"><img src="http://img.shields.io/badge/Demo-Live-green.svg"></a>
+  <a href="https://github.com/drgriffis/text-essence/blob/master/LICENSE">
+    <img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg">
+  </a>
+</p>
+
 <img src="https://textessence.github.io/assets/img/2021-textessence.png" />
 
 TextEssence is a tool for comparative corpus linguistics using embeddings. It is described in the NAACL-HLT 2021 paper:
@@ -69,6 +80,7 @@ npm run autobuild
 (5) **Start using the system!**
 TextEssence will now be running at http://localhost:5000.
 
+<!--
 ## Using the interface
 
 _Documentation in progress_
@@ -76,6 +88,7 @@ _Documentation in progress_
 ## CORD-19 experiments
 
 _Documentation in progress_
+-->
 
 ## Contact and citation
 
