@@ -9,13 +9,28 @@ class Normalizer:
         else:
             self.strip_punctuation_op = lambda tokens: tokens
 
-        if options.normalize_digits:
-            self.normalize_digits_op = lambda tokens: [
-                ('[DIGITS]' if t.is_digit else t)
+        if options.normalize_numbers:
+            self.normalize_numbers_op = lambda tokens: [
+                ('[NUMBER]' if t.like_num else t)  # t.is_digit is only True if it is an integer
                     for t in tokens
             ]
         else:
-            self.normalize_digits_op = lambda tokens: tokens
+            self.normalize_numbers_op = lambda tokens: tokens
+
+        if options.normalize_urls:
+            self.normalize_urls_op = lambda tokens: [
+                (
+                    t 
+                    if (
+                        (type(t) is str)           # numbers may already be strings
+                        or (not t.like_url)
+                    )
+                    else '[URL]'
+                )
+                    for t in tokens
+            ]
+        else:
+            self.normalize_urls_op = lambda tokens: tokens
 
         if options.lower:
             self.lower_op = lambda tokens: [
@@ -29,7 +44,8 @@ class Normalizer:
         tokens = list(sent)
         ## SpaCy object ops
         tokens = self.strip_punctuation_op(tokens)
-        tokens = self.normalize_digits_op(tokens)
+        tokens = self.normalize_numbers_op(tokens)
+        tokens = self.normalize_urls_op(tokens)
         ## switch to string ops
         tokens = [str(t) for t in tokens]
         tokens = self.lower_op(tokens)
@@ -44,13 +60,17 @@ class CLI:
         parser.add_option('--strip-punctuation', dest='strip_punctuation',
             action='store_true', default=False,
             help='strip punctuation tokens')
-        parser.add_option('--normalize-digits', dest='normalize_digits',
+        parser.add_option('--normalize-numbers', dest='normalize_numbers',
             action='store_true', default=False,
-            help='normalize digits to [DIGITS]')
+            help='normalize digits to [NUMBER]')
+        parser.add_option('--normalize-urls', dest='normalize_urls',
+            action='store_true', default=False,
+            help='normalize URLs to [URL]')
     @staticmethod
     def logNormalizationOptions(options):
         return [
             ('Lowercasing', options.lower),
             ('Stripping punctuation', options.strip_punctuation),
-            ('Normalizing digits', options.normalize_digits),
+            ('Normalizing numbers', options.normalize_numbers),
+            ('Normalizing URLs', options.normalize_urls),
         ]
