@@ -1,6 +1,7 @@
 import os
 import csv
 from hedgepig_logger import log
+from textessence.lib import normalization
 
 class LiteratureSnapshotCollection:
     snapshots = None
@@ -239,12 +240,19 @@ class LiteratureSnapshotCorpus:
                     )
 
     @property
-    def corpus_file(self):
+    def raw_corpus_file(self):
         return os.path.join(self.root_directory, '{0}.raw_corpus.txt'.format(self.label))
 
     @property
     def metadata_file(self):
         return os.path.join(self.root_directory, '{0}.metadata.csv'.format(self.label))
+
+    def preprocessed_corpus_file(self, normalization_options):
+        normalization_label = normalization.filenameLabel(normalization_options)
+        return os.path.join(self.root_directory, '{0}.preprocessed_corpus{1}.txt'.format(
+            self.label,
+            ('' if len(normalization_label) == 0 else '.{0}'.format(normalization_label))
+        ))
 
 class LiteratureSnapshotCorpusDocument:
     ID = None

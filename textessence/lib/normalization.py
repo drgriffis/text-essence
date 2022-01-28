@@ -1,3 +1,23 @@
+class NormalizationOptions:
+    lower = False
+    strip_punctuation = False
+    normalize_numbers = False
+    normalize_urls = False
+
+    def __init__(self, lower=False, strip_punctuation=False, normalize_numbers=False, normalize_urls=False):
+        self.lower = lower
+        self.strip_punctuation = strip_punctuation
+        self.normalize_numbers = normalize_numbers 
+        self.normalize_urls = normalize_urls
+
+    def asLabeledList(self):
+        return [
+            ('Lowercasing', self.lower),
+            ('Stripping punctuation', self.strip_punctuation),
+            ('Normalizing numbers', self.normalize_numbers),
+            ('Normalizing URLs', self.normalize_urls),
+        ]
+
 class Normalizer:
     def __init__(self, options):
         if options.strip_punctuation:
@@ -51,26 +71,31 @@ class Normalizer:
         tokens = self.lower_op(tokens)
         return tokens
 
-class CLI:
-    @staticmethod
-    def addNormalizationOptions(parser):
-        parser.add_option('--lower', dest='lower',
-            action='store_true', default=False,
-            help='lowercase all text')
-        parser.add_option('--strip-punctuation', dest='strip_punctuation',
-            action='store_true', default=False,
-            help='strip punctuation tokens')
-        parser.add_option('--normalize-numbers', dest='normalize_numbers',
-            action='store_true', default=False,
-            help='normalize digits to [NUMBER]')
-        parser.add_option('--normalize-urls', dest='normalize_urls',
-            action='store_true', default=False,
-            help='normalize URLs to [URL]')
-    @staticmethod
-    def logNormalizationOptions(options):
-        return [
-            ('Lowercasing', options.lower),
-            ('Stripping punctuation', options.strip_punctuation),
-            ('Normalizing numbers', options.normalize_numbers),
-            ('Normalizing URLs', options.normalize_urls),
-        ]
+def loadConfiguration(section):
+    options = NormalizationOptions(
+        lower=(
+            section['Lowercase'].strip().lower() == 'true'
+        ),
+        strip_punctuation=(
+            section['StripPunctuation'].strip().lower() == 'true'
+        ),
+        normalize_numbers=(
+            section['NormalizeNumbers'].strip().lower() == 'true'
+        ),
+        normalize_urls=(
+            section['NormalizeURLs'].strip().lower() == 'true'
+        )
+    )
+    return options
+
+def filenameLabel(options):
+    lbl = []
+    if options.lower:
+        lbl.append('lower')
+    if options.strip_punctuation:
+        lbl.append('nopunct')
+    if options.normalize_numbers:
+        lbl.append('normnumbers')
+    if options.normalize_urls:
+        lbl.append('normurls')
+    return '_'.join(lbl)
