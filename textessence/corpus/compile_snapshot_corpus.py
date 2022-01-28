@@ -23,26 +23,59 @@ class CompilationData:
         self.snapshots = [s.strip() for s in snapshot_config['Snapshots'].split(',')]
         self.abstracts_only = snapshot_config['AbstractsOnly'].lower().strip() == 'true'
 
+        self._has_fresh_metadata = False
+
+    @property
+    def previous_version_exists(self):
+        return len(self.reference_corpus.document_data) > 0
+
+    @property
+    def changed_since_last_compile(self):
+        if not self._has_fresh_metadata:
+            self.compileFreshMetadata()
+        return areCorporaDifferent(
+            self.corpus.document_data,
+            self.reference_corpus.document_data
+        )
+
+    def compileFreshMetadata(self):
+        for snapshot_lbl in self.snapshots:
+            snapshot = self.collection[snapshot_lbl]
+            log.writeln('>>> Processing snapshot {0} ({1:,} documents) <<<'.format(
+                snapshot_lbl, len(snapshot)
+            ))
+            log.track('  >> Pulled data for {0:,} documents', writeInterval=100)
+            for doc in snapshot:
+                included_abstract, included_full_text = False, False
+                if doc.has_abstract:
+                    included_abstract = True
+                if (not self.abstracts_only) and doc.has_full_text:
+                    included_full_text = True
+                if included_abstract or included_full_text:
+                    self.corpus.addDocument(
+                        doc,
+                        included_abstract,
+                        included_full_text,
+                        flush=False
+                    )
+                    log.tick()
+            log.flushTracker()
+        self._has_fresh_metadata = True
+
 def runSnapshotCorpusCompilation(compilation_data):
     log.writeln('== [1] Compiling current metadata for snapshot corpus ==')
-    compileSnapshotCorpusMetadata(
-        compilation_data
-    )
+    compilation_data.compileFreshMetadata()
 
-    if len(compilation_data.reference_corpus.document_data) > 0:
+    if compilation_data.previous_version_exists:
         log.writeln('== [2] Previous version of corpus found, checking for changes ==')
-        if areCorporaDifferent(
-            compilation_data.corpus.document_data,
-            compilation_data.reference_corpus.document_data
-        ):
+        if compilation_data.changed_since_last_compile:
             log.writeln('Difference found! Proceeding with re-compilation.')
         else:
             log.writeln('No change found. Exiting.')
             return
-    log.writeln()
-        
     else:
         log.writeln('== [2] No previous version of corpus found, continuing with compilation ==')
+    log.writeln()
 
     log.writeln('== [3] Compiling corpus text ==')
     compileSnapshotCorpus(
@@ -69,7 +102,7 @@ def areCorporaDifferent(doc_data_1, doc_data_2):
     return False
 
 def compileSnapshotCorpus(compilation_data):
-    with open(compilation_data.corpus.corpus_file, 'w') as stream:
+    with open(compilation_data.corpus.raw_corpus_file, 'w') as stream:
         log.track('  >> Wrote data from {0:,}/%s documents' % (
             '{0:,}'.format(len(compilation_data.corpus.document_data))
         ), writeInterval=10)
@@ -87,29 +120,6 @@ def compileSnapshotCorpus(compilation_data):
             log.tick()
         log.flushTracker()
     compilation_data.corpus.writeMetadata()
-
-def compileSnapshotCorpusMetadata(compilation_data):
-    for snapshot_lbl in compilation_data.snapshots:
-        snapshot = compilation_data.collection[snapshot_lbl]
-        log.writeln('>>> Processing snapshot {0} ({1:,} documents) <<<'.format(
-            snapshot_lbl, len(snapshot)
-        ))
-        log.track('  >> Pulled data for {0:,} documents', writeInterval=100)
-        for doc in snapshot:
-            included_abstract, included_full_text = False, False
-            if doc.has_abstract:
-                included_abstract = True
-            if (not compilation_data.abstracts_only) and doc.has_full_text:
-                included_full_text = True
-            if included_abstract or included_full_text:
-                compilation_data.corpus.addDocument(
-                    doc,
-                    included_abstract,
-                    included_full_text,
-                    flush=False
-                )
-                log.tick()
-        log.flushTracker()
 
 if __name__ == '__main__':
     def _cli():
@@ -133,11 +143,14 @@ if __name__ == '__main__':
         return options
     options = _cli()
 
-    config = configparser.ConfigParser()
-    config.read(options.config_f)
+    base_config = configparser.ConfigParser()
+    base_config.read(options.config_f)
 
-    snapshots_root_dir = config['TemporalCorpora']['RootDirectory']
-    snapshot_config = config['Snapshot {0}'.format(options.snapshot)]
+    snapshots_config = configparser.ConfigParser()
+    snapshots_config.read(base_config['General']['SnapshotConfig'])
+
+    snapshots_root_dir = snapshots_config['Default']['SnapshotsRootDirectory']
+    snapshot_config = snapshots_config[options.snapshot]
     snapshot_root_dir = snapshot_config['RootDirectory']
 
     if not os.path.exists(snapshot_root_dir):
