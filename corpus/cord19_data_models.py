@@ -20,7 +20,7 @@ UNIFIED_FILES = [
     'document_parses.tar.gz'
 ]
 
-class Format:
+class CORD19Format:
     Split_PDF_Only = 1
     Split_PDF_And_PMC = 2
     Unified = 3
@@ -28,11 +28,11 @@ class Format:
     @staticmethod
     def parse(key):
         if key.lower() == 'split_pdf_only':
-            return Format.Split_PDF_Only
+            return CORD19Format.Split_PDF_Only
         elif key.lower() == 'split_pdf_and_pmc':
-            return Format.Split_PDF_And_PMC
+            return CORD19Format.Split_PDF_And_PMC
         elif key.lower() == 'unified':
-            return Format.Unified
+            return CORD19Format.Unified
         else:
             raise KeyError(key)
 
@@ -46,7 +46,7 @@ class Format:
 
 class CORD19Dataset:
     
-    def __init__(self, data_dir, data_format=Format.Unified):
+    def __init__(self, data_dir, data_format=CORD19Format.Unified):
         self._data_dir = data_dir
         self._data_format = data_format
 
@@ -54,7 +54,7 @@ class CORD19Dataset:
         self._file_counts = {}
         self._file_paths = {}
 
-        FILES = UNIFIED_FILES if (data_format == Format.Unified) else SPLIT_FILES
+        FILES = UNIFIED_FILES if (data_format == CORD19Format.Unified) else SPLIT_FILES
 
         for f in FILES:
             fpath = os.path.join(data_dir, f)
@@ -90,12 +90,12 @@ class CORD19Dataset:
         MAKE SURE TO UNZIP THE .tar.gz files (tar files do not
         correctly index into the contents)
         '''
-        if self._data_format == Format.Split_PDF_Only:
+        if self._data_format == CORD19Format.Split_PDF_Only:
             tarkey = key.split('/')[0]
             tarinfo = self._tar_streams[tarkey].getmember(key.strip())
             tarfile = self._tar_streams[tarkey].extractfile(tarinfo)
             data = json.loads(tarfile.read())
-        elif self._data_format == Format.Split_PDF_And_PMC:
+        elif self._data_format == CORD19Format.Split_PDF_And_PMC:
             with open(key, 'r') as stream:
                 data = json.loads(stream.read())
         else:
@@ -107,7 +107,7 @@ class CORD19Dataset:
 
 class CORD19Deltas(CORD19Dataset):
     
-    def __init__(self, data_dir, ref_dir, data_format=Format.Unified):
+    def __init__(self, data_dir, ref_dir, data_format=CORD19Format.Unified):
         super().__init__(data_dir, data_format=data_format)
 
         if ref_dir:
@@ -169,7 +169,7 @@ class CORD19Record:
         # (1) pull the abstract from the metadata, as a single paragraph
         abstract = self._record['abstract'].strip()
 
-        if self._dataset._data_format == Format.Unified:
+        if self._dataset._data_format == CORD19Format.Unified:
             # (2) if this record has PMC JSON content, prefer it
             if len(self._record['pmc_json_files']) > 0:
                 jsonpath = self._record['pmc_json_files']
@@ -180,7 +180,7 @@ class CORD19Record:
             else:
                 jsonpath = None
 
-        elif self._dataset._data_format == Format.Split_PDF_And_PMC:
+        elif self._dataset._data_format == CORD19Format.Split_PDF_And_PMC:
             # (2) if this record has PMC JSON content, prefer it
             if self._record['has_pmc_xml_parse'] == 'True' and len(self._record['full_text_file']) > 0:
                 jsonpath = os.path.join(
@@ -201,7 +201,7 @@ class CORD19Record:
             else:
                 jsonpath = None
 
-        elif self._dataset._data_format == Format.Split_PDF_Only:
+        elif self._dataset._data_format == CORD19Format.Split_PDF_Only:
             # (2) -- no PMC JSON content in these versions --
             # (3) check for PDF JSON content
             if self._record['has_full_text'] == 'True' and len(self._record['full_text_file']) > 0:
