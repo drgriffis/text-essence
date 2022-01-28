@@ -1,7 +1,7 @@
 import scispacy
 import spacy
 from hedgepig_logger import log
-from lib import normalization
+from textessence.lib import normalization
 
 def readAndNormalizeTerminology(f, options):
     log.track(message='  >> Processed {0:,} terminology entries', writeInterval=100)

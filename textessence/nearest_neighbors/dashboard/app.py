@@ -7,9 +7,9 @@ app = Flask(__name__)
 
 import os
 import configparser
-from nearest_neighbors.database import *
-from nearest_neighbors.dashboard import packaging
-from nearest_neighbors.dashboard import visualization
+from textessence.nearest_neighbors.database import *
+from textessence.nearest_neighbors.dashboard import packaging
+from textessence.nearest_neighbors.dashboard import visualization
 
 config = configparser.ConfigParser()
 config.read('config.ini')
