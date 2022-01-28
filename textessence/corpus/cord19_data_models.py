@@ -1,6 +1,7 @@
 '''
 '''
 
+import sys
 import os
 import tarfile
 import json
@@ -96,6 +97,11 @@ class CORD19Dataset:
             tarfile = self._tar_streams[tarkey].extractfile(tarinfo)
             data = json.loads(tarfile.read())
         elif self._data_format == CORD19Format.Split_PDF_And_PMC:
+            if not os.path.exists(key):
+                sys.stderr.write('[ERROR] Attempting to load "{0}", file not found.\n'.format(key))
+                sys.stderr.write('[ERROR] Have you unzipped the .tar.gz files in this distribution?\n')
+                sys.stderr.write('[ERROR] This is REQUIRED if using CORD19Format Split_PDF_And_PMC.')
+                sys.stderr.write('[ERROR] Allowing exception to throw, for traceback...')
             with open(key, 'r') as stream:
                 data = json.loads(stream.read())
         else:
