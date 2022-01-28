@@ -102,7 +102,7 @@ def extractDocumentsFromDump(input_dump, snapshot_collection,
         log.flushTracker(renderStatus(status))
 
         # report out on distribution of extracted documents
-        extraction_report = ExtractionReport(input_dump['RootDirectory'])
+        extraction_report = CORD19ExtractionReport(input_dump['RootDirectory'])
         extraction_report.extraction_timestamp = datetime.now()
         extraction_report.input_date = input_date
         extraction_report.input_directory = input_dir
@@ -123,8 +123,7 @@ def extractDocumentsFromDump(input_dump, snapshot_collection,
     for snapshot in snapshots_touched.values():
         snapshot.writeMetadata()
 
-_TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S %z'
-class ExtractionReport:
+class CORD19ExtractionReport:
     extraction_timestamp = None
     input_date = None
     input_directory = None
@@ -139,20 +138,31 @@ class ExtractionReport:
     snapshot_touch_counts = None
     date_resolution_counts = None
 
+    TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S %z'
+    TIMESTAMP_FORMAT_NO_TZ = '%Y-%m-%d %H:%M:%S'
+
     def __init__(self, root_dir):
         self._fpath = os.path.join(root_dir, 'extraction_report.csv')
         self.read()
 
     def read(self):
         if os.path.isfile(self._fpath):
+            self.snapshot_touch_counts = {}
+            self.date_resolution_counts = {}
             with open(self._fpath, 'r') as stream:
                 reader = csv.reader(stream)
                 for record in reader:
                     if record[0] == 'Extraction Timestamp':
-                        self.extraction_timestamp = datetime.strptime(
-                            record[1],
-                            _TIMESTAMP_FORMAT
-                        )
+                        try:
+                            self.extraction_timestamp = datetime.strptime(
+                                record[1],
+                                CORD19ExtractionReport.TIMESTAMP_FORMAT
+                            )
+                        except ValueError:
+                            self.extraction_timestamp = datetime.strptime(
+                                record[1].strip(),
+                                CORD19ExtractionReport.TIMESTAMP_FORMAT_NO_TZ
+                            )
                     elif record[0] == 'Input Date':
                         self.input_date = record[1]
                     elif record[0] == 'Input Directory':
@@ -180,7 +190,7 @@ class ExtractionReport:
             for row in [
                 (
                     'Extraction Timestamp',
-                    self.extraction_timestamp.strftime(_TIMESTAMP_FORMAT)
+                    self.extraction_timestamp.strftime(CORD19ExtractionReport.TIMESTAMP_FORMAT)
                 ),
                 ('Input Date', self.input_date),
                 ('Input Directory', self.input_directory),
@@ -248,7 +258,7 @@ if __name__ == '__main__':
     )
 
     input_dump = cord19_config[options.dump]
-    output_root_dir = cord19_config['TemporalCorpora']['RootDirectory']
+    output_root_dir = cord19_config['Default']['ExtractionRootDirectory']
 
     reference_dump = cord19_config[options.dump].get('ReferenceDump', None)
     if reference_dump:
