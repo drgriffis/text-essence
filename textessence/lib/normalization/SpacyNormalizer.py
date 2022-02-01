@@ -1,24 +1,8 @@
-class NormalizationOptions:
-    lower = False
-    strip_punctuation = False
-    normalize_numbers = False
-    normalize_urls = False
+import scispacy
+import spacy
+from .BaseNormalizer import BaseNormalizer
 
-    def __init__(self, lower=False, strip_punctuation=False, normalize_numbers=False, normalize_urls=False):
-        self.lower = lower
-        self.strip_punctuation = strip_punctuation
-        self.normalize_numbers = normalize_numbers 
-        self.normalize_urls = normalize_urls
-
-    def asLabeledList(self):
-        return [
-            ('Lowercasing', self.lower),
-            ('Stripping punctuation', self.strip_punctuation),
-            ('Normalizing numbers', self.normalize_numbers),
-            ('Normalizing URLs', self.normalize_urls),
-        ]
-
-class Normalizer:
+class SpacyNormalizer(BaseNormalizer):
     def __init__(self, options):
         if options.strip_punctuation:
             self.strip_punctuation_op = lambda tokens: [
@@ -60,8 +44,19 @@ class Normalizer:
         else:
             self.lower_op = lambda tokens: tokens
 
-    def normalize(self, sent):
-        tokens = list(sent)
+        model = options.method_settings.get('model', 'en_core_sci_lg')
+        self.nlp = spacy.load(model)
+
+    def tokenizeAndNormalize(self, string):
+        for sent_tokens in self.tokenize(string):
+            yield self.normalize(sent_tokens)
+
+    def tokenize(self, string):
+        para = self.nlp(string)
+        for sent in para.sents:
+            yield list(sent)
+
+    def normalize(self, tokens):
         ## SpaCy object ops
         tokens = self.strip_punctuation_op(tokens)
         tokens = self.normalize_numbers_op(tokens)
@@ -70,32 +65,3 @@ class Normalizer:
         tokens = [str(t) for t in tokens]
         tokens = self.lower_op(tokens)
         return tokens
-
-def loadConfiguration(section):
-    options = NormalizationOptions(
-        lower=(
-            section['Lowercase'].strip().lower() == 'true'
-        ),
-        strip_punctuation=(
-            section['StripPunctuation'].strip().lower() == 'true'
-        ),
-        normalize_numbers=(
-            section['NormalizeNumbers'].strip().lower() == 'true'
-        ),
-        normalize_urls=(
-            section['NormalizeURLs'].strip().lower() == 'true'
-        )
-    )
-    return options
-
-def filenameLabel(options):
-    lbl = []
-    if options.lower:
-        lbl.append('lower')
-    if options.strip_punctuation:
-        lbl.append('nopunct')
-    if options.normalize_numbers:
-        lbl.append('normnumbers')
-    if options.normalize_urls:
-        lbl.append('normurls')
-    return '_'.join(lbl)

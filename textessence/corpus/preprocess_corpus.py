@@ -1,20 +1,16 @@
-import scispacy
-import spacy
+import configparser
 from hedgepig_logger import log
 from textessence.lib import normalization
 from .snapshot_data_models import *
 
 def preprocess(corpus, normalization_options):
     log.track(message='  >> Processed {0:,} paragraphs', writeInterval=100)
-    normalizer = normalization.Normalizer(normalization_options)
+    normalizer = normalization.buildNormalizer(normalization_options)
     with open(corpus.raw_corpus_file, 'r') as in_stream, \
          open(corpus.preprocessed_corpus_file(normalization_options), 'w') as out_stream:
-        nlp = spacy.load('en_core_sci_lg')
         for line in in_stream:
-            para = nlp(line)
-            for sent in para.sents:
-                tokens = normalizer.normalize(sent)
-                out_stream.write('%s\n' % (' '.join(tokens)))
+            for normalized_sentence in normalizer.tokenizeAndNormalize(line):
+                out_stream.write('%s\n' % (' '.join(normalized_sentence)))
             log.tick()
     log.flushTracker()
 
@@ -42,7 +38,7 @@ if __name__ == '__main__':
     normalization_options = normalization.loadConfiguration(base_config['Normalization'])
 
     snapshots_config = configparser.ConfigParser()
-    snapshots_config.read(base_config['General']['SnapshotConfig']
+    snapshots_config.read(base_config['General']['SnapshotConfig'])
 
     snapshots_root_dir = snapshots_config['Default']['SnapshotsRootDirectory']
     snapshot_config = snapshots_config[options.snapshot]
