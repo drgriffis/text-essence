@@ -1,5 +1,6 @@
 import os
 import csv
+from textessence.lib import normalization
 
 class TerminologyCollection:
     terminologies = None
@@ -13,6 +14,8 @@ class TerminologyCollection:
         return key in self.terminologies
     def __getitem__(self, key):
         return self.terminologies[key]
+    def get(self, key, default=None):
+        return self.terminologies.get(key, default)
 
     def addTerminology(self, key):
         if key in self.terminologies:
@@ -85,7 +88,7 @@ class Terminology:
         )
 
 class FlatTerminology:
-    def __init__(self, filepath):
+    def __init__(self, filepath=None):
         self.filepath = filepath
         self._mapping = {}
         self.read()
@@ -109,3 +112,17 @@ class FlatTerminology:
                 for record in reader:
                     (key, value) = record
                     self.addMapping(key, value)
+
+    @property
+    def num_terms(self):
+        return sum([
+            len(v)
+                for (k,v) in self._mapping.items()
+        ])
+
+    def __len__(self):
+        return len(self._mapping)
+    def __iter__(self):
+        return iter(self._mapping)
+    def items(self):
+        return self._mapping.items()

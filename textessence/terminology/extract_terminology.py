@@ -1,5 +1,6 @@
 import configparser
 from hedgepig_logger import log
+from . import initializeTerminologyEnvironment
 from . import sources
 from .terminology_data_models import *
 from .snomed_ct import snomed_ct_interface
@@ -22,33 +23,29 @@ if __name__ == '__main__':
         return options
     options = _cli()
 
-    base_config = configparser.ConfigParser()
-    base_config.read(options.config_f)
+    env = initializeTerminologyEnvironment(
+        options.config_f,
+        options.terminology
+    )
+    if env.terminology is None:
+        env.terminology = env.terminology_collection.addTerminology(options.terminology)
 
-    term_config = configparser.ConfigParser()
-    term_config_f = base_config['General']['TerminologyConfig']
-    term_config.read(term_config_f)
+    logfile = os.path.join(env.terminology.root_directory, '{0}.extract_terminology.log'.format(options.terminology))
 
-    root_dir = term_config['Default']['RootDirectory']
-    terminology_collection = TerminologyCollection(root_dir)
-    terminology = terminology_collection.addTerminology(options.terminology)
-
-    logfile = os.path.join(terminology.root_directory, '{0}.extract_terminology.log'.format(options.terminology))
-
-    source_release = term_config[options.terminology]['SourceRelease']
-    source_config = term_config[source_release]
-    term_config = term_config[options.terminology]
+    source_release = env.term_config[options.terminology]['SourceRelease']
+    source_config = env.term_config[source_release]
+    term_config = env.term_config[options.terminology]
 
     log.start(logfile)
     log.writeConfig([
         ('Configuration file', options.config_f),
-        ('Terminology configuration file', term_config_f),
+        ('Terminology configuration file', env.term_config_f),
         ('Terminology', options.terminology),
         ('Terminology configuration', list(term_config.items())),
         ('Source release configuration', list(source_config.items()))
     ], 'Terminology extraction')
 
-    flat_terminology = FlatTerminology(terminology.raw_terminology_file)
+    flat_terminology = FlatTerminology(env.terminology.raw_terminology_file)
 
     if sources.parse(term_config['SourceType']) == sources.SNOMED_CT:
         snomed_ct_interface.populateFromSnomedCT(
