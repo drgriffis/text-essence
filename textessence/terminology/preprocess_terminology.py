@@ -51,7 +51,10 @@ if __name__ == '__main__':
     normalization_options = normalization.loadConfiguration(env.base_config['Normalization'])
     preprocessed_dir = env.terminology.preprocessed_dir(normalization_options)
 
-    input_file = env.terminology.raw_terminology_file
+    if os.path.exists(env.terminology.filtered_terminology_file):
+        input_file = env.terminology.filtered_terminology_file
+    else:
+        input_file = env.terminology.raw_terminology_file
     preprocessed_output_file = env.terminology.preprocessed_terminology_file(normalization_options)
 
     if not os.path.exists(preprocessed_dir):
