@@ -1,3 +1,4 @@
+import json
 from .BaseNormalizer import BaseNormalizer
 from .SpacyNormalizer import SpacyNormalizer
 
@@ -62,10 +63,9 @@ def loadConfiguration(section):
         normalize_urls=(
             section['NormalizeURLs'].strip().lower() == 'true'
         ),
-        **{
-            kvpair.split('=')[0]:kvpair.split('=')[1]
-                for kvpair in section['MethodSettings'].split(',')
-        }
+        **(
+            json.loads(section['MethodSettings'])
+        )
     )
     return options
 
