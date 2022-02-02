@@ -24,9 +24,9 @@ def getCUIsAndSABCodes(MRCONSO, SABs):
     with MRCONSOParser(MRCONSO) as parser:
         for record in parser:
             if SAB_filter(record.SAB):
-                if not record.CUI in CUI_to_SAB:
-                    CUI_to_SAB[record.CUI] = set()
-                CUI_to_SAB[record.CUI].add(record.CODE)
+                if not record.CUI in CUI_to_SAB_codes:
+                    CUI_to_SAB_codes[record.CUI] = set()
+                CUI_to_SAB_codes[record.CUI].add(record.CODE)
     return CUI_to_SAB_codes
 
 def getCUITypes(MRSTY, CUIs):

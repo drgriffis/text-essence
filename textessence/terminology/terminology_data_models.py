@@ -73,7 +73,7 @@ class Terminology:
         return os.path.join(self.root_directory, '{0}.raw_terminology.txt'.format(self.label))
     @property
     def filtered_terminology_file(self):
-        return os.path.join(self.root_directoyr, '{0}.filtered_terminology.txt'.format(self.label))
+        return os.path.join(self.root_directory, '{0}.filtered_terminology.txt'.format(self.label))
     @property
     def category_map_file(self):
         return os.path.join(self.root_directory, '{0}.category_map.txt'.format(self.label))
@@ -136,11 +136,18 @@ class CategoryMap:
     allow_multiple = True
     _map = None
 
-    def __init__(self, filepath=None, allow_multiple=True):
+    def __init__(self, filepath=None, allow_multiple=None):
         self.filepath = filepath
+        # allow multiple will, if not specified, be detected from the
+        # existing mapping file
         self.allow_multiple = allow_multiple
         self._map = {}
         self.read()
+
+        # fallback; if there is no existing mapping and allow_multiple
+        # was not specified, set it to False
+        if self.allow_multiple is None:
+            self.allow_multiple = False
 
     def addMapping(self, key, value):
         if self.allow_multiple:
@@ -154,6 +161,14 @@ class CategoryMap:
         if self.filepath and os.path.exists(self.filepath):
             with open(self.filepath, 'r') as stream:
                 reader = csv.DictReader(stream)
+                if self.allow_multiple is None:
+                    if 'SemanticTypes' in reader.fieldnames:
+                        self.allow_multiple = True
+                    elif 'SemanticType' in reader.fieldnames:
+                        self.allow_multiple = False
+                    else:
+                        raise Exception('Cannot detect whether this CategoryMap allows multiple categories')
+
                 for record in reader:
                     if self.allow_multiple:
                         value = set(record['SemanticTypes'].split(','))
@@ -186,3 +201,8 @@ class CategoryMap:
             return sum([len(v) for v in self._map.values()])
         else:
             return len(self)
+
+    def __getitem__(self, key):
+        return self._map[key]
+    def get(self, key, default):
+        return self._map.get(key, default)

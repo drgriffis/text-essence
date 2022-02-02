@@ -11,7 +11,7 @@ class BaseUMLSParser:
         self.open()
         return self
 
-    def __exit__(self):
+    def __exit__(self, type, value, traceback):
         self.close()
 
     def __iter__(self):
@@ -50,7 +50,7 @@ class SemGroupsParser(BaseUMLSParser):
         )
 
 class MRCONSOParser(BaseUMLSParser):
-    def parseLine(record):
+    def parseLine(self, record):
         (
             CUI,
             LAT,
@@ -95,7 +95,7 @@ class MRCONSOParser(BaseUMLSParser):
         )
 
 class MRSTYParser(BaseUMLSParser):
-    def parseLine(record):
+    def parseLine(self, record):
         (
             CUI,
             TUI,
