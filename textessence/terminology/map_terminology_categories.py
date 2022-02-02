@@ -1,9 +1,8 @@
-import configparser
+import os
 from hedgepig_logger import log
 from . import initializeTerminologyEnvironment
-from .sources import TerminologySources
 from .terminology_data_models import *
-from .snomed_ct import snomed_ct_interface
+from . import categories
 
 if __name__ == '__main__':
     def _cli():
@@ -27,33 +26,33 @@ if __name__ == '__main__':
         options.config_f,
         options.terminology
     )
-    if env.terminology is None:
-        env.terminology = env.terminology_collection.addTerminology(options.terminology)
 
-    logfile = os.path.join(env.terminology.root_directory, '{0}.extract_terminology.log'.format(options.terminology))
+    categories_config = categories.CategoriesConfiguration.loadConfiguration(
+        env.term_config,
+        options.terminology
+    )
 
-    source_release = env.term_config[options.terminology]['SourceRelease']
-    source_config = env.term_config[source_release]
-    term_config = env.term_config[options.terminology]
-
+    logfile = os.path.join(env.terminology.root_directory, '{0}.map_terminology_categories.log'.format(options.terminology))
     log.start(logfile)
     log.writeConfig([
         ('Configuration file', options.config_f),
         ('Terminology configuration file', env.term_config_f),
         ('Terminology', options.terminology),
-        ('Terminology configuration', list(term_config.items())),
-        ('Source release configuration', list(source_config.items()))
-    ], 'Terminology extraction')
+        ('Terminology configuration', list(env.term_config.items())),
+        ('Categories source release configuration', list(categories_config.source_release_config.items())),
+    ], 'Terminology category mapping')
 
-    flat_terminology = FlatTerminology(env.terminology.raw_terminology_file)
+    log.writeln('Building category map...')
+    log.indent()
+    category_map = categories.buildCategoryMap(categories_config)
+    log.unindent()
 
-    if TerminologySources.parse(term_config['SourceType']) == TerminologySources.SNOMED_CT:
-        snomed_ct_interface.populateFromSnomedCT(
-            flat_terminology,
-            source_config
-        )
-
-    log.writeln('Writing flat terminology to %s...' % flat_terminology.filepath)
-    flat_terminology.write()
+    category_map.filepath = env.terminology.category_map_file
+    log.writeln('Writing category map out to %s...' % category_map.filepath)
+    category_map.write()
+    log.writeln('Wrote {0:,} keys, {1:,} total mappings.\n'.format(
+        len(category_map),
+        category_map.num_mappings
+    ))
 
     log.stop()

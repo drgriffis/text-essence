@@ -74,6 +74,9 @@ class Terminology:
     @property
     def filtered_terminology_file(self):
         return os.path.join(self.root_directoyr, '{0}.filtered_terminology.txt'.format(self.label))
+    @property
+    def category_map_file(self):
+        return os.path.join(self.root_directory, '{0}.category_map.txt'.format(self.label))
 
     def preprocessed_dir(self, normalization_options):
         normalization_label = normalization.filenameLabel(normalization_options)
@@ -126,3 +129,60 @@ class FlatTerminology:
         return iter(self._mapping)
     def items(self):
         return self._mapping.items()
+
+
+class CategoryMap:
+    filepath = None
+    allow_multiple = True
+    _map = None
+
+    def __init__(self, filepath=None, allow_multiple=True):
+        self.filepath = filepath
+        self.allow_multiple = allow_multiple
+        self._map = {}
+        self.read()
+
+    def addMapping(self, key, value):
+        if self.allow_multiple:
+            if not key in self._map:
+                self._map[key] = set()
+            self._map[key].add(value)
+        else:
+            self._map[key] = value
+
+    def read(self):
+        if self.filepath and os.path.exists(self.filepath):
+            with open(self.filepath, 'r') as stream:
+                reader = csv.DictReader(stream)
+                for record in reader:
+                    if self.allow_multiple:
+                        value = set(record['SemanticTypes'].split(','))
+                    else:
+                        value = record['SemanticType']
+                    self._map[record['Key']] = value
+
+    def write(self):
+        fieldnames = ['Key']
+        if self.allow_multiple:
+            fieldnames.append('SemanticTypes')
+        else:
+            fieldnames.append('SemanticType')
+        with open(self.filepath, 'w') as stream:
+            writer = csv.DictWriter(stream, fieldnames=fieldnames)
+            writer.writeheader()
+            for (key, value) in sorted(self._map.items()):
+                row = {'Key': key}
+                if self.allow_multiple:
+                    row['SemanticTypes'] = ','.join(sorted(value))
+                else:
+                    row['SemanticType'] = value
+                writer.writerow(row)
+
+    def __len__(self):
+        return len(self._map)
+    @property
+    def num_mappings(self):
+        if self.allow_multiple:
+            return sum([len(v) for v in self._map.values()])
+        else:
+            return len(self)
