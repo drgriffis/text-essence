@@ -90,6 +90,13 @@ class Terminology:
             '{0}.preprocessed_terminology.txt'.format(self.label)
         )
 
+    def compiled_preprocessed_terminology_file(self, normalization_options,
+            suffix='.ngram_term_map.pkl.gz'):
+        return os.path.join(
+            self.preprocessed_dir(normalization_options),
+            '{0}.compiled_preprocessed_terminology{1}'.format(self.label, suffix)
+        )
+
 class FlatTerminology:
     def __init__(self, filepath=None):
         self.filepath = filepath
