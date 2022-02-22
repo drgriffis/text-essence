@@ -254,6 +254,14 @@ class LiteratureSnapshotCorpus:
             ('' if len(normalization_label) == 0 else '.{0}'.format(normalization_label))
         ))
 
+    def tagged_corpus_file(self, normalization_options, terminology):
+        normalization_label = normalization.filenameLabel(normalization_options)
+        return os.path.join(self.root_directory, '{0}.tagged_corpus.{1}{2}.txt'.format(
+            self.label,
+            terminology,
+            ('' if len(normalization_label) == 0 else '.{0}'.format(normalization_label))
+        ))
+
 class LiteratureSnapshotCorpusDocument:
     ID = None
     source = None

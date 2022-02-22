@@ -1,9 +1,7 @@
 import os
 import sys
 from hedgepig_logger import log
-from textessence.lib import normalization
-from . import initializeTerminologyEnvironment
-from .terminology_data_models import *
+from . import initializeJETEnvironment
 
 if __name__ == '__main__':
     def _cli():
@@ -23,21 +21,19 @@ if __name__ == '__main__':
         return options
     options = _cli()
 
-    env = initializeTerminologyEnvironment(
+    env = initializeJETEnvironment(
         options.config_f,
         options.terminology
     )
 
-    normalization_options = normalization.loadConfiguration(env.base_config['Normalization'])
-    preprocessed_dir = env.terminology.preprocessed_dir(normalization_options)
-    preprocessed_input_file = env.terminology.preprocessed_terminology_file(normalization_options)
+    preprocessed_dir = env.terminology.preprocessed_dir(env.normalization_options)
+    preprocessed_input_file = env.terminology.preprocessed_terminology_file(env.normalization_options)
     compiled_output_base = env.terminology.compiled_preprocessed_terminology_file(
-        normalization_options,
+        env.normalization_options,
         suffix=''
     )
 
-    JET_path = env.base_config['General']['JETInstallation']
-    sys.path.append(JET_path)
+    sys.path.append(env.JET_path)
     import JET.API
 
     logfile = os.path.join(preprocessed_dir, '{0}.compile_terminology.log'.format(options.terminology))
@@ -48,7 +44,7 @@ if __name__ == '__main__':
         ('Target terminology', options.terminology),
         ('Input (normalized) terminology file', preprocessed_input_file),
         ('Output (compiled) terminology base path', compiled_output_base),
-        ('Normalization options (for filename calculation only)', normalization_options.asLabeledList())
+        ('Normalization options (for filename calculation only)', env.normalization_options.asLabeledList())
     ], 'Terminology compilation')
 
     JET.API.compileTerminology(
