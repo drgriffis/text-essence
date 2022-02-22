@@ -4,8 +4,8 @@ import configparser
 from datetime import datetime
 from hedgepig_logger import log
 from .cord19_data_models import CORD19Deltas, CORD19Format
-from .snapshot_data_models import *
-from . import publication_date_resolution
+from ..snapshot_data_models import *
+from .. import publication_date_resolution
                 
             
 def extractDocumentsFromDump(input_dump, snapshot_collection,
