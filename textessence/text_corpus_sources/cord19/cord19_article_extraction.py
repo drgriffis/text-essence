@@ -3,7 +3,7 @@ import csv
 from datetime import datetime
 from hedgepig_logger import log
 from .cord19_data_models import CORD19Deltas, CORD19Format
-from textessence.corpus.snapshot_data_models import *
+from textessence.core.models.snapshot_data_models import *
 from . import publication_date_resolution
 from ..text_corpus_source_extractor_interface import TextCorpusSourceExtractorInterface
                 

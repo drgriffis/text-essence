@@ -3,8 +3,8 @@ import configparser
 from collections import OrderedDict
 from hedgepig_logger import log
 from textessence.lib import normalization
-from textessence.corpus.cord19.extract_cord19_articles import CORD19ExtractionReport
-from textessence.corpus.snapshot_data_models import *
+from textessence.text_corpus_sources.cord19.cord19_article_extraction import CORD19ExtractionReport
+from textessence.core.models.snapshot_data_models import *
 from textessence.corpus.compile_snapshot_corpus import CompilationData
 from textessence.terminology.terminology_data_models import *
 

@@ -1,7 +1,7 @@
 import os
 import configparser
 from hedgepig_logger import log
-from textessence.corpus.snapshot_data_models import LiteratureSnapshotCollection
+from textessence.core.models.snapshot_data_models import LiteratureSnapshotCollection
 from textessence.text_corpus_sources import text_corpus_sources_interface
 
 def extractDocumentsFromTextSource(base_config_filepath, source_name):

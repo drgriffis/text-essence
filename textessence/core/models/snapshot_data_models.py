@@ -212,7 +212,7 @@ class LiteratureSnapshotCorpus:
 
     def writeMetadata(self):
         with open(self.metadata_file, 'w') as stream:
-            metadata_writer = csv.DictWriter(self._metadata_stream, fieldnames=[
+            metadata_writer = csv.DictWriter(stream, fieldnames=[
                 'ID',
                 'Source',
                 'IncludedAbstract',

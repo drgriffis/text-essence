@@ -2,7 +2,7 @@ import configparser
 from ...lib import normalization
 from ...terminology import TerminologyEnvironment
 from ...terminology.terminology_data_models import *
-from ...corpus.snapshot_data_models import *
+from textessence.core.models.snapshot_data_models import *
 
 class JETEnvironment(TerminologyEnvironment):
     snapshots_config = None
