@@ -26,16 +26,17 @@ class CategoriesConfiguration:
 
     @staticmethod
     def loadConfiguration(term_config, terminology):
-        source_release=term_config[terminology]['CategoriesSourceRelease']
+        source_release = env.terminology_config['CategoriesSourceRelease']
+        source_release_config = env.terminologies_config[source_release]
         return CategoriesConfiguration(
             source_type=CategoriesSources.parse(
-                term_config[terminology]['CategoriesSourceType']
+                env.terminology_config['CategoriesSourceType']
             ),
             source_release=source_release,
             source_mapping_settings=json.loads(
-                term_config[terminology]['CategoriesSourceMappingSettings']
+                env.terminology_config['CategoriesSourceMappingSettings']
             ),
-            source_release_config=term_config[source_release]
+            source_release_config=source_release_config
         )
 
 

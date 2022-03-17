@@ -2,7 +2,8 @@ import os
 from hedgepig_logger import log
 from . import initializeTerminologyEnvironment
 from .terminology_data_models import *
-from . import categories
+from textessence.terminology_sources import categories_interface
+from textessence.core.logic.terminology import getTerminologyWorkingEnvironment
 
 if __name__ == '__main__':
     def _cli():
@@ -22,13 +23,13 @@ if __name__ == '__main__':
         return options
     options = _cli()
 
-    env = initializeTerminologyEnvironment(
+    env = getTerminologyWorkingEnvironment(
         options.config_f,
         options.terminology
     )
 
-    categories_config = categories.CategoriesConfiguration.loadConfiguration(
-        env.term_config,
+    categories_config = categories_interface.CategoriesConfiguration.loadConfiguration(
+        env.terminologies_config,
         options.terminology
     )
 
@@ -44,7 +45,7 @@ if __name__ == '__main__':
 
     log.writeln('Building category map...')
     log.indent()
-    category_map = categories.buildCategoryMap(categories_config)
+    category_map = categories_interface.buildCategoryMap(categories_config)
     log.unindent()
 
     category_map.filepath = env.terminology.category_map_file
