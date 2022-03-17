@@ -1,7 +1,7 @@
 import configparser
-from ...lib import normalization
-from ...terminology import TerminologyEnvironment
-from ...terminology.terminology_data_models import *
+from textessence.core.lib import normalization
+from textessence.core.logic.terminology import TerminologyEnvironment
+from textessence.core.models.terminology_data_models import *
 from textessence.core.models.snapshot_data_models import *
 
 class JETEnvironment(TerminologyEnvironment):

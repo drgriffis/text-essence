@@ -1,5 +1,5 @@
 from hedgepig_logger import log
-from textessence.lib import normalization
+from textessence.core.lib import normalization
 
 def preprocessSnapshotCorpus(corpus, normalization_options):
     log.track(message='  >> Processed {0:,} paragraphs', writeInterval=100)

@@ -1,6 +1,6 @@
 import os
 import csv
-from textessence.lib import normalization
+from textessence.core.lib import normalization
 
 class TerminologyCollection:
     terminologies = None

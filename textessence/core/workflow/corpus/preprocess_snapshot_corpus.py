@@ -1,7 +1,7 @@
 import os
 import configparser
 from hedgepig_logger import log
-from textessence.lib import normalization
+from textessence.core.lib import normalization
 from textessence.core.models.snapshot_data_models import *
 from textessence.core.logic.corpus import snapshot_corpus_preprocessing
 

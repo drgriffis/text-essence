@@ -1,7 +1,7 @@
 import os
 import csv
 from hedgepig_logger import log
-from textessence.lib import normalization
+from textessence.core.lib import normalization
 
 class LiteratureSnapshotCollection:
     snapshots = None

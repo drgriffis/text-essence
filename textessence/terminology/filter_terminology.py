@@ -1,9 +1,9 @@
 import os
 import json
 from hedgepig_logger import log
-from textessence.lib import stopwords
-from . import initializeTerminologyEnvironment
-from .terminology_data_models import *
+from textessence.core.lib import stopwords
+from textessence.core.logic import getTerminologyWorkingEnvironment
+from textessence.core.models.terminology_data_models import *
 
 def filterTerminology(env, raw_terminology, stopword_options=None,
         categories=None, min_length=0, remove_stopword_terms=False):
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         return options
     options = _cli()
 
-    env = initializeTerminologyEnvironment(
+    env = getTerminologyWorkingEnvironment(
         options.config_f,
         options.terminology
     )
