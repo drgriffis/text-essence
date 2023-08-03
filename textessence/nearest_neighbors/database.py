@@ -603,7 +603,7 @@ class EmbeddingNeighborhoodDatabase:
             # count the number of existing embedding sets within this group
             other_sets = list(self.selectFromEmbeddingSets(group_ID=group.ID))
             # and append the new set at the end
-            source_set = EmbeddingSet(
+            e_set = EmbeddingSet(
                 group=group,
                 name=name,
                 ordering=len(other_sets)+1
@@ -697,11 +697,12 @@ class EmbeddingNeighborhoodDatabase:
         raw_rows = list(self._cursor)
 
         # fetch the associated group objects
-        group_IDs = set([
-            row[1] for row in raw_rows
-        ])
-        groups = self.selectFromEmbeddingSetGroups(ids=group_IDs)
-        groups_by_ID = { group.ID: group for group in groups }
+        if len(raw_rows) > 0:
+            group_IDs = set([
+                row[1] for row in raw_rows
+            ])
+            groups = self.selectFromEmbeddingSetGroups(ids=group_IDs)
+            groups_by_ID = { group.ID: group for group in groups }
 
         # instantiate the embedding set objects
         for row in raw_rows:
