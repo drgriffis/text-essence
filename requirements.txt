@@ -4,3 +4,4 @@ pyemblib
 nltk
 spacy
 scispacy
+tensorflow

@@ -9,13 +9,45 @@ import codecs
 import os
 import pyemblib
 from hedgepig_logger import log
-from drgriffis.common import util
 from . import model
 from .. import nn_io
 
 class _SIGNALS:
     HALT = -1
     COMPUTE = 1
+
+def prepareForParallel(data, threads, data_only=False):
+    '''Chunks list of data into disjoint subsets for each thread
+    to process.
+
+    Parameters:
+        data    :: the list of data to split among threads
+        threads :: the number of threads to split for
+    '''
+    perthread = int(len(data) / threads)
+    threadchunks = []
+    for i in range(threads):
+        startix, endix = (i*perthread), ((i+1)*perthread)
+        # first N-1 threads handle equally-sized chunks of data
+        if i < threads-1:
+            endix = (i+1)*perthread
+            threadchunks.append((startix, data[startix:endix]))
+        # last thread handles remainder of data
+        else:
+            threadchunks.append((startix, data[startix:]))
+    if data_only: return [d for (ix, d) in threadchunks]
+    else: return threadchunks
+
+def parallelExecute(processes):
+    '''Takes instances of multiprocessing.Process, starts them all executing,
+    and returns when they finish.
+    '''
+    # start all the threads running...
+    for p in processes:
+        p.start()
+    # ...and wait for all of them to finish
+    for p in processes:
+        p.join()
 
 def KNearestNeighbors(emb_arrs, node_IDs, top_k, neighbor_file, threads=2,
         batch_size=5, completed_neighbors=None, with_distances=False,
@@ -33,7 +65,7 @@ def KNearestNeighbors(emb_arrs, node_IDs, top_k, neighbor_file, threads=2,
         all_indices = filtered_indices
         log.writeln('  >> Filtered out {0:,} completed indices'.format(len(emb_arrs[0]) - len(filtered_indices)))
         log.writeln('  >> Filtered set size: {0:,}'.format(len(all_indices)))
-    index_subsets = util.prepareForParallel(all_indices, threads-1, data_only=True)
+    index_subsets = prepareForParallel(all_indices, threads-1, data_only=True)
     nn_q = mp.Queue()
     nn_writer = mp.Process(
         target=_nn_writer,
@@ -48,7 +80,7 @@ def KNearestNeighbors(emb_arrs, node_IDs, top_k, neighbor_file, threads=2,
     ]
     nn_writer.start()
     log.writeln('2 | Neighbor computation')
-    util.parallelExecute(computers)
+    parallelExecute(computers)
     nn_q.put(_SIGNALS.HALT)
     nn_writer.join()
 
@@ -70,7 +102,7 @@ def KNearestNeighborsFromQueries(emb_arrs, node_IDs, query_emb_arrs,
         all_indices = filtered_indices
         log.writeln('  >> Filtered out {0:,} completed indices'.format(len(emb_arrs[0]) - len(filtered_indices)))
         log.writeln('  >> Filtered set size: {0:,}'.format(len(all_indices)))
-    index_subsets = util.prepareForParallel(all_indices, threads-1, data_only=True)
+    index_subsets = prepareForParallel(all_indices, threads-1, data_only=True)
     nn_q = mp.Queue()
     nn_writer = mp.Process(
         target=_nn_writer,
@@ -85,7 +117,7 @@ def KNearestNeighborsFromQueries(emb_arrs, node_IDs, query_emb_arrs,
     ]
     nn_writer.start()
     log.writeln('2 | Neighbor computation')
-    util.parallelExecute(computers)
+    parallelExecute(computers)
     nn_q.put(_SIGNALS.HALT)
     nn_writer.join()
 
@@ -126,7 +158,8 @@ def _nn_writer(neighborf, node_IDs, query_node_IDs, nn_q, with_distances, neighb
     log.flushTracker()
 
 def _threadedNeighbors(thread_indices, emb_arrs, batch_size, top_k, nn_q, with_distances):
-    sess = tf.Session()
+    tf.compat.v1.disable_eager_execution()
+    sess = tf.compat.v1.Session()
     grph = model.MultiNearestNeighbors(sess, emb_arrs)
 
     ix = 0
@@ -138,7 +171,8 @@ def _threadedNeighbors(thread_indices, emb_arrs, batch_size, top_k, nn_q, with_d
         ix += batch_size
 
 def _threadedCrossSetNeighbors(thread_indices, src_emb_arrs, dest_emb_arrs, batch_size, top_k, nn_q, with_distances):
-    sess = tf.Session()
+    tf.compat.v1.disable_eager_execution()
+    sess = tf.compat.v1.Session()
     grph = model.MultiNearestNeighbors(sess, dest_emb_arrs)
 
     ix = 0

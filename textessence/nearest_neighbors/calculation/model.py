@@ -15,7 +15,7 @@ class MultiNearestNeighbors:
         self._number_of_embeddings = len(embed_arrays)
         self._build(embed_shapes)
 
-        self._session.run(tf.global_variables_initializer())
+        self._session.run(tf.compat.v1.global_variables_initializer())
 
         # fill the (static) embedding matrices
         for i in range(len(embed_arrays)):
@@ -32,19 +32,19 @@ class MultiNearestNeighbors:
             )
 
     def _build(self, emb_shapes):
-        self._sample_indices = tf.placeholder(
+        self._sample_indices = tf.compat.v1.placeholder(
             shape=[None,],
             dtype=tf.int32
         )
         self._sample_embeds = [
-            tf.placeholder(
+            tf.compat.v1.placeholder(
                 shape=[None,emb_shapes[i][1]],
                 dtype=tf.float32
             ) for i in range(len(emb_shapes))
         ]
 
         self._embed_phs = [
-            tf.placeholder(
+            tf.compat.v1.placeholder(
                 shape=emb_shapes[i],
                 dtype=tf.float32
             ) for i in range(len(emb_shapes))
@@ -87,9 +87,9 @@ class MultiNearestNeighbors:
     def _print(self, *nodes):
         for n in nodes:
             if type(n) is tuple and len(n) == 2:
-                self._prints.append(tf.Print(0, [n[0]], message=n[1], summarize=100))
+                self._prints.append(tf.compat.v1.Print(0, [n[0]], message=n[1], summarize=100))
             else:
-                self._prints.append(tf.Print(0, [n], summarize=100))
+                self._prints.append(tf.compat.v1.Print(0, [n], summarize=100))
 
     def _exec(self, nodes, feed_dict=None):
         all_nodes = [p for p in self._prints]
